@@ -1,0 +1,65 @@
+﻿======================================================================
+  TEMPORAL ALIGNMENT DIAGNOSTIC
+======================================================================
+
+[1] ECMWF GRIB Time Structure
+--------------------------------------------------
+  File: ecmwf_2015_06.sfc.grib
+  Dimensions: {'time': 30, 'latitude': 141, 'longitude': 121}
+  time coord (init times):
+    First: 2015-06-01 12:00:00
+    Last:  2015-06-30 12:00:00
+    Count: 30
+    Sample: [Timestamp('2015-06-01 12:00:00'), Timestamp('2015-06-02 12:00:00'), Timestamp('2015-06-03 12:00:00'), Timestamp('2015-06-04 12:00:00'), Timestamp('2015-06-05 12:00:00')]
+  valid_time coord:
+    First: 2015-06-02 12:00:00
+    Last:  2015-07-01 12:00:00
+    Count: 30
+    Sample: [Timestamp('2015-06-02 12:00:00'), Timestamp('2015-06-03 12:00:00'), Timestamp('2015-06-04 12:00:00'), Timestamp('2015-06-05 12:00:00'), Timestamp('2015-06-06 12:00:00')]
+  step: 86400000000000 nanoseconds
+
+  All coordinates:
+    number: 0
+    time: [2015-06-01T12:00:00.000000000 ... 2015-06-30T12:00:00.000000000] (n=30)
+    step: 86400000000000 nanoseconds
+    surface: 0.0
+    latitude: [19.0 ... 5.0] (n=141)
+    longitude: [70.0 ... 82.0] (n=121)
+    valid_time: [2015-06-02T12:00:00.000000000 ... 2015-07-01T12:00:00.000000000] (n=30)
+
+[2] Ground Truth Date Structure
+--------------------------------------------------
+  Columns: ['Date', 'Station', 'Source', 'Lat', 'Lon', 'Rainfall_mm']
+  Date range: 2015-06-01 00:00:00 to 2024-09-30 00:00:00
+  Total rows: 8510
+  Stations: ['Chevella', 'Hayathnagar', 'Ibrahimpatnam', 'Kondurg', 'Maheshwaram', 'Saroornagar', 'Yacharam']
+
+  June 2015 dates (first 10):
+    2015-06-01 ù 7 stations, rain range [0.0, 0.0]
+    2015-06-02 ù 7 stations, rain range [0.0, 0.0]
+    2015-06-03 ù 7 stations, rain range [0.0, 10.0]
+    2015-06-04 ù 7 stations, rain range [0.0, 0.0]
+    2015-06-05 ù 7 stations, rain range [4.0, 79.0]
+    2015-06-06 ù 7 stations, rain range [0.0, 14.6]
+    2015-06-07 ù 7 stations, rain range [0.0, 10.0]
+    2015-06-08 ù 7 stations, rain range [0.0, 0.0]
+    2015-06-09 ù 7 stations, rain range [0.0, 2.0]
+    2015-06-10 ù 7 stations, rain range [0.0, 0.0]
+
+[3] TEMPORAL ALIGNMENT ANALYSIS
+--------------------------------------------------
+D:\NEW_NRSC\.venv\Scripts\python.exe : Traceback (most recent call last):
+At line:1 char:1
++ D:\NEW_NRSC\.venv\Scripts\python.exe D:\NEW_NRSC\scripts\diagnose_tem ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call la 
+   st)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "D:\NEW_NRSC\scripts\diagnose_temporal.py", line 116, in <module>
+    print("""
+  File "C:\Users\User\AppData\Local\Programs\Python\Python310\lib\encodings\
+cp1252.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+UnicodeEncodeError: 'charmap' codec can't encode characters in position 
+461-523: character maps to <undefined>

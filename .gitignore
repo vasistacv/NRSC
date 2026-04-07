@@ -1,0 +1,29 @@
+# Virtual environment
+.venv/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Data and large files (DO NOT UPLOAD)
+*.csv
+*.nc
+*.grib
+*.idx
+*.pt
+*.pth
+
+# Outputs and logs
+experiment_outputs/
+outputs/
+scripts/*_output.txt
+*.tmp
