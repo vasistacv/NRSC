@@ -1,9 +1,12 @@
 """
-config.py
-=========
-Tuned configuration v4 — continuing to crush FAR while keeping POD.
-v3: corr=0.48, POD_P90=0.50, FAR_P90=0.89, SEDI_P95=0.75
-Strategy: even higher FA penalty + add occurrence threshold optimization
+config.py — SpatialNet v2 Configuration
+=========================================
+Tuned for the new CNN architecture.
+Key changes from baseline:
+  - MODEL_TYPE = "SpatialNet"
+  - Larger batch size (CNN benefits from larger batches for BN stability)
+  - Lower LR with cosine annealing
+  - Adjusted oversampling weights
 """
 
 import os
@@ -15,7 +18,7 @@ from pathlib import Path
 ROOT_DIR        = Path(r"D:\NEW_NRSC")
 ECMWF_DIR       = ROOT_DIR / "ecmwf_data"
 GROUND_TRUTH    = ROOT_DIR / "Final_ground_truth_data.csv"
-OUTPUT_DIR      = ROOT_DIR / "experiment_outputs"
+OUTPUT_DIR      = ROOT_DIR / "experiment_outputs_cnn_v2"
 
 # ─────────────────────────────────────────────
 # ECMWF GRIB SETTINGS
@@ -29,8 +32,8 @@ MONSOON_MONTHS = [6, 7, 8, 9]
 # ─────────────────────────────────────────────
 # PATCH (WINDOW) SETTINGS
 # ─────────────────────────────────────────────
-WINDOW_SIZES = [3, 5, 9, 11, 31]
-DEFAULT_WINDOW = 31
+WINDOW_SIZES = [9]
+DEFAULT_WINDOW = 9
 
 # ─────────────────────────────────────────────
 # DATA SPLIT
@@ -50,22 +53,21 @@ P99_APPROX     = 86.17
 # ─────────────────────────────────────────────
 # MODEL ARCHITECTURE
 # ─────────────────────────────────────────────
-MODEL_TYPE = "SmallNet"
+MODEL_TYPE = "SpatialNet"
 
-CNN_BASE_CHANNELS   = 32
+CNN_BASE_CHANNELS   = 48
 CNN_DEPTH           = 2
-CNN_DROPOUT         = 0.15
-MLP_HIDDEN          = [128, 64]
-MLP_DROPOUT         = 0.20
-FUSION_HIDDEN       = 64
-FUSION_DROPOUT      = 0.15
+CNN_DROPOUT         = 0.10
+MLP_HIDDEN          = [64, 32]
+MLP_DROPOUT         = 0.15
+FUSION_HIDDEN       = 96
+FUSION_DROPOUT      = 0.20
 
 # ─────────────────────────────────────────────
-# LOSS FUNCTION — aggressive FAR suppression
+# LOSS FUNCTION
 # ─────────────────────────────────────────────
 TWEEDIE_P          = 1.5
 
-# v4-restored: gave best corr=0.51, SEDI_P95=0.79
 PENALTY_P90_UNDER  = 4.0
 PENALTY_P95_UNDER  = 8.0
 PENALTY_P99_UNDER  = 15.0
@@ -76,21 +78,20 @@ QUANTILE_BLEND_WEIGHT = 0.20
 # ─────────────────────────────────────────────
 # TRAINING
 # ─────────────────────────────────────────────
-BATCH_SIZE         = 64
-NUM_EPOCHS         = 400       # more epochs for better convergence
-LR_INIT            = 5e-4
+BATCH_SIZE         = 96          # Larger for BN stability with CNN
+NUM_EPOCHS         = 500         # More epochs — CNN needs longer
+LR_INIT            = 3e-4        # Slightly lower for CNN
 LR_MIN             = 1e-6
-WEIGHT_DECAY       = 1e-3
+WEIGHT_DECAY        = 5e-4       # Less regularization (CNN has implicit reg from structure)
 
-# Weighted sampler — v4 values
-OVERSAMPLE_P90     = 5.0
-OVERSAMPLE_P95     = 8.0
-OVERSAMPLE_P99     = 15.0
+# Weighted sampler
+OVERSAMPLE_P90     = 6.0
+OVERSAMPLE_P95     = 10.0
+OVERSAMPLE_P99     = 18.0
 OVERSAMPLE_RAIN    = 1.5
-# dry days = weight 1.0
 
 # Early stopping
-PATIENCE           = 80
+PATIENCE           = 100         # More patience for CNN convergence
 
 # Gradient clipping
 GRAD_CLIP          = 1.0
@@ -116,4 +117,4 @@ NUM_WORKERS = 0
 # LOGGING
 # ─────────────────────────────────────────────
 LOG_INTERVAL  = 20
-SAVE_BEST_N   = 3
+SAVE_BEST_N   = 5

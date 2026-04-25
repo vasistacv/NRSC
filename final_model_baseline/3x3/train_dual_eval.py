@@ -138,7 +138,7 @@ def main():
 
     # ── Load ALL data ────────────────────────────────────────────────────
     print("\n[1/3] Loading ALL data...")
-    builder = RainfallDataBuilder(window_size=config.DEFAULT_WINDOW)
+    builder = RainfallDataBuilder(window_size=3)
     all_years = list(range(2015, 2025))  # 2015-2024
 
     all_patches, all_tabular, all_targets = [], [], []
@@ -167,21 +167,9 @@ def main():
     print(f"  P90 events: {(all_targets >= p90).sum()}")
 
     # ── Load SmallNet ────────────────────────────────────────────────────
-    print(f"\n[2/3] Loading SmallNet (window={config.DEFAULT_WINDOW})...")
-    nn_model = build_model(window_size=config.DEFAULT_WINDOW, n_channels=19, n_tabular=24)
-    
-    # Needs to match the best checkpoint inside experiment_outputs/window_{size}/
-    ckpt_dir = config.OUTPUT_DIR / f"window_{config.DEFAULT_WINDOW}"
-    
-    # Simple logic to find the best checkpoint
-    import glob
-    pts = list(ckpt_dir.glob("*.pt"))
-    if not pts:
-        print(f"ERROR: No .pt checkpoints found in {ckpt_dir} for window_size={config.DEFAULT_WINDOW}.")
-        print("You must run 'python extracted_files/train.py' first to train the neural network!")
-        sys.exit(1)
-        
-    ckpt_path = pts[-1]  # The trainer saves them sequentially, last one is fine
+    print("\n[2/3] Loading SmallNet...")
+    nn_model = build_model(window_size=3, n_channels=19, n_tabular=24)
+    ckpt_path = config.OUTPUT_DIR / "window_3" / "ckpt_epoch0084_csi0.3645.pt"
     ckpt = torch.load(str(ckpt_path), map_location="cpu")
     nn_model.load_state_dict(ckpt["model"])
     nn_model.eval()

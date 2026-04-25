@@ -29,8 +29,8 @@ MONSOON_MONTHS = [6, 7, 8, 9]
 # ─────────────────────────────────────────────
 # PATCH (WINDOW) SETTINGS
 # ─────────────────────────────────────────────
-WINDOW_SIZES = [3, 5, 9, 11, 31]
-DEFAULT_WINDOW = 31
+WINDOW_SIZES = [3, 5, 9, 11]
+DEFAULT_WINDOW = 11
 
 # ─────────────────────────────────────────────
 # DATA SPLIT

@@ -1,9 +1,8 @@
 """
-config.py
-=========
-Tuned configuration v4 — continuing to crush FAR while keeping POD.
-v3: corr=0.48, POD_P90=0.50, FAR_P90=0.89, SEDI_P95=0.75
-Strategy: even higher FA penalty + add occurrence threshold optimization
+config.py — v3 Enhanced SmallNet
+================================
+Same proven SmallNet architecture.
+Key change: train on 2015-2022 (8 years, includes former val year 2022).
 """
 
 import os
@@ -15,7 +14,7 @@ from pathlib import Path
 ROOT_DIR        = Path(r"D:\NEW_NRSC")
 ECMWF_DIR       = ROOT_DIR / "ecmwf_data"
 GROUND_TRUTH    = ROOT_DIR / "Final_ground_truth_data.csv"
-OUTPUT_DIR      = ROOT_DIR / "experiment_outputs"
+OUTPUT_DIR      = ROOT_DIR / "final_model_baseline" / "9x9_v3"
 
 # ─────────────────────────────────────────────
 # ECMWF GRIB SETTINGS
@@ -29,14 +28,14 @@ MONSOON_MONTHS = [6, 7, 8, 9]
 # ─────────────────────────────────────────────
 # PATCH (WINDOW) SETTINGS
 # ─────────────────────────────────────────────
-WINDOW_SIZES = [3, 5, 9, 11, 31]
-DEFAULT_WINDOW = 31
+WINDOW_SIZES = [3, 5, 9]
+DEFAULT_WINDOW = 9
 
 # ─────────────────────────────────────────────
 # DATA SPLIT
 # ─────────────────────────────────────────────
-TRAIN_YEARS = list(range(2015, 2022))
-VAL_YEARS   = [2022, 2023]
+TRAIN_YEARS = list(range(2015, 2023))  # 2015-2022 (8 years)
+VAL_YEARS   = [2023]
 TEST_YEARS  = [2024]
 
 # ─────────────────────────────────────────────

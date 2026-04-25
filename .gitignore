@@ -27,3 +27,8 @@ experiment_outputs/
 outputs/
 scripts/*_output.txt
 *.tmp
+
+# Extra data exclusions
+Final_GFS_Data/
+ecmwf_data/
+*.zip

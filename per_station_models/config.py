@@ -1,9 +1,8 @@
 """
-config.py
-=========
-Tuned configuration v4 — continuing to crush FAR while keeping POD.
-v3: corr=0.48, POD_P90=0.50, FAR_P90=0.89, SEDI_P95=0.75
-Strategy: even higher FA penalty + add occurrence threshold optimization
+config.py — Per-Station Model Configuration
+=============================================
+Copied from extracted_files/config.py and adapted for station-wise training.
+Each station gets its own model trained only on that station's data.
 """
 
 import os
@@ -15,7 +14,7 @@ from pathlib import Path
 ROOT_DIR        = Path(r"D:\NEW_NRSC")
 ECMWF_DIR       = ROOT_DIR / "ecmwf_data"
 GROUND_TRUTH    = ROOT_DIR / "Final_ground_truth_data.csv"
-OUTPUT_DIR      = ROOT_DIR / "experiment_outputs"
+OUTPUT_DIR      = ROOT_DIR / "per_station_models" / "outputs"
 
 # ─────────────────────────────────────────────
 # ECMWF GRIB SETTINGS
@@ -29,8 +28,8 @@ MONSOON_MONTHS = [6, 7, 8, 9]
 # ─────────────────────────────────────────────
 # PATCH (WINDOW) SETTINGS
 # ─────────────────────────────────────────────
-WINDOW_SIZES = [3, 5, 9, 11, 31]
-DEFAULT_WINDOW = 31
+WINDOW_SIZES = [9]
+DEFAULT_WINDOW = 9
 
 # ─────────────────────────────────────────────
 # DATA SPLIT
@@ -61,36 +60,32 @@ FUSION_HIDDEN       = 64
 FUSION_DROPOUT      = 0.15
 
 # ─────────────────────────────────────────────
-# LOSS FUNCTION — aggressive FAR suppression
+# LOSS FUNCTION
 # ─────────────────────────────────────────────
 TWEEDIE_P          = 1.5
-
-# v4-restored: gave best corr=0.51, SEDI_P95=0.79
 PENALTY_P90_UNDER  = 4.0
 PENALTY_P95_UNDER  = 8.0
 PENALTY_P99_UNDER  = 15.0
 PENALTY_FALSE_ALARM = 8.0
-
 QUANTILE_BLEND_WEIGHT = 0.20
 
 # ─────────────────────────────────────────────
 # TRAINING
 # ─────────────────────────────────────────────
-BATCH_SIZE         = 64
-NUM_EPOCHS         = 400       # more epochs for better convergence
+BATCH_SIZE         = 64          # Same as best baseline
+NUM_EPOCHS         = 400         # Same as best baseline
 LR_INIT            = 5e-4
 LR_MIN             = 1e-6
 WEIGHT_DECAY       = 1e-3
 
-# Weighted sampler — v4 values
+# Weighted sampler — v4 values (same as best baseline)
 OVERSAMPLE_P90     = 5.0
 OVERSAMPLE_P95     = 8.0
 OVERSAMPLE_P99     = 15.0
 OVERSAMPLE_RAIN    = 1.5
-# dry days = weight 1.0
 
 # Early stopping
-PATIENCE           = 80
+PATIENCE           = 80          # Same as best baseline
 
 # Gradient clipping
 GRAD_CLIP          = 1.0
@@ -115,5 +110,13 @@ NUM_WORKERS = 0
 # ─────────────────────────────────────────────
 # LOGGING
 # ─────────────────────────────────────────────
-LOG_INTERVAL  = 20
+LOG_INTERVAL  = 10
 SAVE_BEST_N   = 3
+
+# ─────────────────────────────────────────────
+# STATIONS
+# ─────────────────────────────────────────────
+ALL_STATIONS = [
+    "Chevella", "Hayathnagar", "Ibrahimpatnam",
+    "Kondurg", "Maheshwaram", "Saroornagar", "Yacharam"
+]

@@ -471,8 +471,8 @@ if __name__ == "__main__":
     config.OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     if args.window is not None:
-        if args.window not in [3, 5, 9, 11, 31]:
-            print("Error: --window must be 3, 5, 9, 11, or 31")
+        if args.window not in [3, 5]:
+            print("Error: --window must be 3 or 5")
             sys.exit(1)
         train(window_size=args.window, debug=args.debug)
     else:

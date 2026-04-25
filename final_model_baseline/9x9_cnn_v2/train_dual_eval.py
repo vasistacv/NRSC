@@ -1,12 +1,8 @@
 """
-train_dual_eval.py — Dual Evaluation Pipeline
-===============================================
-Two evaluation modes:
-  A) Temporal split: Train 2015-2021, Val 2022-2023, Test 2024 (realistic)
-  B) Random 70/30 split: All years mixed (more stable, larger test set)
-
-Both use: Rain classifier gate + SmallNet/XGBoost ensemble
-All hyperparameters chosen on VALIDATION, evaluated ONCE on test.
+train_dual_eval.py — Dual Evaluation Pipeline for SpatialNet
+=============================================================
+Same dual evaluation as baseline (Temporal + Random split),
+but uses SpatialNet CNN instead of SmallNet MLP.
 """
 
 import sys, json, warnings, numpy as np
@@ -33,7 +29,7 @@ def run_pipeline(X_tr, y_tr, X_vl, y_vl, X_te, y_te,
 
     p95 = thresholds["p95"]
 
-    # ── Rain classifier ──────────────────────────────────────────────────
+    # ── Rain classifier ──
     print("  Training rain classifier...")
     y_rain_tr = (y_tr >= config.DRY_THRESHOLD).astype(int)
     y_rain_vl = (y_vl >= config.DRY_THRESHOLD).astype(int)
@@ -57,7 +53,7 @@ def run_pipeline(X_tr, y_tr, X_vl, y_vl, X_te, y_te,
             best_rain_csi, best_rain_t = c, t
     print(f"  Rain threshold: {best_rain_t:.2f} (val CSI={best_rain_csi:.4f})")
 
-    # ── XGBoost Regression ───────────────────────────────────────────────
+    # ── XGBoost Regression ──
     print("  Training XGBoost regression...")
     w = np.ones(len(y_tr), dtype=np.float32)
     w[(y_tr >= 0.1) & (y_tr < p90)] = 2.0
@@ -75,14 +71,14 @@ def run_pipeline(X_tr, y_tr, X_vl, y_vl, X_te, y_te,
     xgb_te = reg.predict(X_te).clip(min=0)
     print(f"  Regression iter: {reg.best_iteration}")
 
-    # ── Grid search on VALIDATION ────────────────────────────────────────
+    # ── Grid search on VALIDATION ──
     print("  Grid search on validation...")
     best_score, best_cfg, best_m = -999, None, None
 
-    for w_nn in [0.10, 0.15, 0.18, 0.20, 0.22, 0.25, 0.30, 0.35]:
+    for w_nn in [0.10, 0.15, 0.18, 0.20, 0.22, 0.25, 0.28, 0.30, 0.35, 0.40]:
         ens_vl = w_nn * nn_vl + (1 - w_nn) * xgb_vl
 
-        for rain_t in np.arange(0.35, 0.55, 0.02):
+        for rain_t in np.arange(0.30, 0.60, 0.02):
             rain_mask = rain_vl >= rain_t
             final = np.zeros_like(ens_vl)
             final[rain_mask] = ens_vl[rain_mask]
@@ -92,7 +88,6 @@ def run_pipeline(X_tr, y_tr, X_vl, y_vl, X_te, y_te,
             csi_p90 = m.get("CSI_p90", 0)
             csi_rain = m.get("CSI_rain", 0)
 
-            # Score: maximize CSI_P90 while penalizing FAR heavily
             score = (csi_rain + csi_p90 * 3.0 + m.get("CSI_p95", 0) * 1.0
                      + m.get("SEDI_rain", 0) * 0.3 - far_p90 * 2.0)
 
@@ -107,7 +102,7 @@ def run_pipeline(X_tr, y_tr, X_vl, y_vl, X_te, y_te,
           f"FAR_P90={best_m.get('FAR_p90',0):.4f}  "
           f"CSI_P95={best_m.get('CSI_p95',0):.4f}")
 
-    # ── Apply ONCE to test ───────────────────────────────────────────────
+    # ── Apply ONCE to test ──
     print("\n  >> Evaluating ONCE on test (no leakage)...")
     ens_te = best_cfg["w_nn"] * nn_te + (1 - best_cfg["w_nn"]) * xgb_te
     rain_mask_te = rain_te >= best_cfg["rain_t"]
@@ -120,26 +115,18 @@ def run_pipeline(X_tr, y_tr, X_vl, y_vl, X_te, y_te,
     print_metrics(test_m, title=f"{label} — TEST RESULTS")
     print(f"  corr_rainy = {corr:.4f}")
 
-    # P90 contingency
-    pred_p90 = final_te >= p90
-    actual_p90 = y_te >= p90
-    H = (pred_p90 & actual_p90).sum()
-    M = (~pred_p90 & actual_p90).sum()
-    FA = (pred_p90 & ~actual_p90).sum()
-    print(f"  P90 contingency: H={H}, M={M}, FA={FA}, n_actual={actual_p90.sum()}, n_pred={pred_p90.sum()}")
-
     return test_m, corr, best_cfg
 
 
 def main():
     print("\n" + "=" * 60)
-    print("  DUAL EVALUATION PIPELINE")
+    print("  SPATIALNET v2 — DUAL EVALUATION PIPELINE")
     print("=" * 60)
 
-    # ── Load ALL data ────────────────────────────────────────────────────
+    # ── Load ALL data ──
     print("\n[1/3] Loading ALL data...")
     builder = RainfallDataBuilder(window_size=config.DEFAULT_WINDOW)
-    all_years = list(range(2015, 2025))  # 2015-2024
+    all_years = list(range(2015, 2025))
 
     all_patches, all_tabular, all_targets = [], [], []
     year_indices = []
@@ -163,49 +150,34 @@ def main():
     p99 = float(np.percentile(rainy_all, 99))
     thresholds = {"p90": p90, "p95": p95, "p99": p99}
     print(f"  P90={p90:.1f}mm  P95={p95:.1f}mm  P99={p99:.1f}mm")
-    print(f"  Rainy: {len(rainy_all)} ({len(rainy_all)/len(all_targets)*100:.1f}%)")
-    print(f"  P90 events: {(all_targets >= p90).sum()}")
 
-    # ── Load SmallNet ────────────────────────────────────────────────────
-    print(f"\n[2/3] Loading SmallNet (window={config.DEFAULT_WINDOW})...")
+    # ── Load SpatialNet ──
+    print(f"\n[2/3] Loading SpatialNet (window={config.DEFAULT_WINDOW})...")
     nn_model = build_model(window_size=config.DEFAULT_WINDOW, n_channels=19, n_tabular=24)
     
-    # Needs to match the best checkpoint inside experiment_outputs/window_{size}/
     ckpt_dir = config.OUTPUT_DIR / f"window_{config.DEFAULT_WINDOW}"
-    
-    # Simple logic to find the best checkpoint
-    import glob
-    pts = list(ckpt_dir.glob("*.pt"))
+    pts = sorted(ckpt_dir.glob("*.pt"))
     if not pts:
-        print(f"ERROR: No .pt checkpoints found in {ckpt_dir} for window_size={config.DEFAULT_WINDOW}.")
-        print("You must run 'python extracted_files/train.py' first to train the neural network!")
+        print(f"ERROR: No .pt checkpoints found in {ckpt_dir}.")
+        print("Run 'python train.py' first!")
         sys.exit(1)
-        
-    ckpt_path = pts[-1]  # The trainer saves them sequentially, last one is fine
+    
+    ckpt_path = pts[-1]
+    print(f"  Loading: {ckpt_path.name}")
     ckpt = torch.load(str(ckpt_path), map_location="cpu")
     nn_model.load_state_dict(ckpt["model"])
     nn_model.eval()
 
-    # ── Normalise ALL data once ──────────────────────────────────────────
-    # For temporal split: fit normaliser on train years only
-    # For random split: fit normaliser on the 70% train split
-
-    # ═══════════════════════════════════════════════════════════════════
-    # EVALUATION A: Temporal Split (2015-2021 / 2022-2023 / 2024)
-    # ═══════════════════════════════════════════════════════════════════
+    # ── Temporal Split ──
     print("\n[3/3] Running evaluations...")
 
-    # Split by year
     tr_mask = np.zeros(len(all_targets), dtype=bool)
     vl_mask = np.zeros(len(all_targets), dtype=bool)
     te_mask = np.zeros(len(all_targets), dtype=bool)
     for yr, start, end in year_indices:
-        if yr in config.TRAIN_YEARS:
-            tr_mask[start:end] = True
-        elif yr in config.VAL_YEARS:
-            vl_mask[start:end] = True
-        elif yr in config.TEST_YEARS:
-            te_mask[start:end] = True
+        if yr in config.TRAIN_YEARS: tr_mask[start:end] = True
+        elif yr in config.VAL_YEARS: vl_mask[start:end] = True
+        elif yr in config.TEST_YEARS: te_mask[start:end] = True
 
     norm_temporal = Normaliser()
     norm_temporal.fit(all_patches[tr_mask], all_tabular[tr_mask])
@@ -240,20 +212,15 @@ def main():
         thresholds, p90,
         label="A: TEMPORAL SPLIT (Train 2015-2021, Val 2022-2023, Test 2024)")
 
-    # ═══════════════════════════════════════════════════════════════════
-    # EVALUATION B: Random 70/30 Split (all years mixed)
-    # ═══════════════════════════════════════════════════════════════════
+    # ── Random Split ──
     np.random.seed(42)
     N = len(all_targets)
     indices = np.random.permutation(N)
     n_train = int(0.70 * N)
-    n_val = int(0.15 * N)  # 70% train, 15% val, 15% test
+    n_val = int(0.15 * N)
     train_idx = indices[:n_train]
     val_idx = indices[n_train:n_train+n_val]
     test_idx = indices[n_train+n_val:]
-
-    print(f"\n  Random split: Train={len(train_idx)}, Val={len(val_idx)}, Test={len(test_idx)}")
-    print(f"  Test P90 events: {(all_targets[test_idx] >= p90).sum()}")
 
     norm_random = Normaliser()
     norm_random.fit(all_patches[train_idx], all_tabular[train_idx])
@@ -270,29 +237,22 @@ def main():
         X_te_r, all_targets[test_idx],
         nn_vl_r, nn_te_r,
         thresholds, p90,
-        label="B: RANDOM 70/15/15 SPLIT (all years mixed)")
+        label="B: RANDOM 70/15/15 SPLIT")
 
-    # ═══════════════════════════════════════════════════════════════════
-    # COMPARISON TABLE
-    # ═══════════════════════════════════════════════════════════════════
+    # ── Comparison ──
     print("\n" + "=" * 70)
-    print("  COMPARISON: Temporal Split vs Random Split")
+    print("  COMPARISON: Temporal vs Random | SpatialNet v2")
     print("=" * 70)
-    print(f"\n  {'Metric':<15s} {'Temporal (2024)':>15s} {'Random 70/30':>15s} {'Target':>10s}")
-    print("  " + "-" * 57)
+    print(f"\n  {'Metric':<15s} {'Temporal (2024)':>15s} {'Random 70/30':>15s}")
+    print("  " + "-" * 47)
     for key in ["CSI_rain", "POD_rain", "FAR_rain", "SEDI_rain",
                 "CSI_p90", "POD_p90", "FAR_p90", "SEDI_p90",
-                "CSI_p95", "POD_p95", "FAR_p95", "SEDI_p95"]:
+                "CSI_p95", "POD_p95", "FAR_p95", "SEDI_p95",
+                "RMSE", "MAE"]:
         t_val = temporal_m.get(key, 0)
         r_val = random_m.get(key, 0)
-        target = ""
-        if "CSI_rain" in key: target = "≥0.35"
-        elif "CSI_p90" in key: target = "≥0.25"
-        elif "CSI_p95" in key: target = "≥0.35"
-        elif "SEDI" in key: target = "≥0.50"
-        print(f"  {key:<15s} {t_val:>15.4f} {r_val:>15.4f} {target:>10s}")
+        print(f"  {key:<15s} {t_val:>15.4f} {r_val:>15.4f}")
     print(f"  {'corr_rainy':<15s} {temporal_corr:>15.4f} {random_corr:>15.4f}")
-    print(f"  {'RMSE':<15s} {temporal_m.get('RMSE',0):>15.4f} {random_m.get('RMSE',0):>15.4f}")
 
     # Save
     out_dir = config.OUTPUT_DIR / "final_ensemble"
