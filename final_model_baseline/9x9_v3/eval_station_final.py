@@ -3,7 +3,7 @@ eval_station_final.py — FINAL Station-Wise Evaluation
 =======================================================
 4 evaluations × 7 stations × Model vs ECMWF × ALL metrics
 
-  A) Temporal:  Train 2015-2023, Test 2024
+  A) Temporal:  Train 2015-2020, Test 2021-2024
   B) Reverse:   Train 2018-2024, Test 2015-2017
   C) Random:    70/15/15 all years mixed
   D) LOYO:      Leave-One-Year-Out (10 years)
@@ -20,7 +20,7 @@ import xgboost as xgb
 from sklearn.isotonic import IsotonicRegression
 
 import config
-from dataset import RainfallDataBuilder, Normaliser
+from dataset import RainfallDataBuilder, Normaliser, temporal_augment
 from model import build_model
 from metrics import evaluate
 
@@ -98,35 +98,28 @@ def run_ensemble(X_tr, y_tr, X_vl, y_vl, X_te, nn_vl, nn_te, p90, p95, th):
         reg_lambda=3.0,n_estimators=1000,early_stopping_rounds=50,verbosity=0,n_jobs=-1,
         random_state=42,scale_pos_weight=spw2)
     ce.fit(X_tr,ye,eval_set=[(X_vl,yev)],verbose=False)
-    # Isotonic
-    iso = IsotonicRegression(y_min=0.0,out_of_bounds='clip')
-    iso.fit(nn_vl, y_vl)
-    # Grid search
-    rv=cr.predict_proba(X_vl)[:,1]; xv=rg.predict(X_vl).clip(min=0)
-    ev=ce.predict_proba(X_vl)[:,1]; nc=iso.predict(nn_vl)
-    best_s,best_c=-999,None
-    for wn in [0,0.05,0.1,0.15,0.2,0.25,0.3,0.35,0.4]:
-        for uc in [False,True]:
-            nv=nc if uc else nn_vl; en=wn*nv+(1-wn)*xv
-            for rt in np.arange(0.30,0.60,0.03):
-                rm=rv>=rt; g=np.zeros_like(en); g[rm]=en[rm]
-                for eb in [0,0.3,0.5,0.7,1.0]:
-                    f=g.copy()
-                    if eb>0:
-                        em=ev>=0.5; f[em]=f[em]*(1+eb*ev[em])
-                    m=evaluate(f,y_vl,th,prefix="")
-                    s=(m.get("CSI_rain",0)*1+m.get("CSI_p90",0)*3+m.get("CSI_p95",0)*2
-                       +m.get("SEDI_p90",0)*1-m.get("FAR_p90",1)*2-m.get("FAR_rain",1)*0.5)
-                    if s>best_s: best_s=s; best_c={"wn":wn,"rt":float(rt),"eb":eb,"uc":uc}
-    # Apply test
-    rte=cr.predict_proba(X_te)[:,1]; xte=rg.predict(X_te).clip(min=0)
-    ete=ce.predict_proba(X_te)[:,1]
-    nte=iso.predict(nn_te) if best_c["uc"] else nn_te
-    en=best_c["wn"]*nte+(1-best_c["wn"])*xte
-    rm=rte>=best_c["rt"]; f=np.zeros_like(en); f[rm]=en[rm]
-    if best_c["eb"]>0:
-        em=ete>=0.5; f[em]=f[em]*(1+best_c["eb"]*ete[em])
-    return f
+    
+    # --- Robust Threshold-based Expert Ensemble ---
+    
+    # Base prediction is XGBoost Regressor (good for RMSE / low rain)
+    f_te = rg.predict(X_te).clip(min=0)
+    
+    # For extreme events, trust the Neural Network!
+    # If the NN predicts > P90, use the NN's prediction.
+    nn_extreme_mask_te = nn_te >= th['p90']
+    f_te[nn_extreme_mask_te] = nn_te[nn_extreme_mask_te]
+    
+    # Boost using the Extreme Classifier if it's very confident
+    ete = ce.predict_proba(X_te)[:,1]
+    boost_mask_te = ete >= 0.6
+    f_te[boost_mask_te] = f_te[boost_mask_te] * 1.5
+    
+    # Also enforce Rain / No-Rain logic from Classification branch
+    rte = cr.predict_proba(X_te)[:,1]
+    no_rain_mask = rte < 0.3
+    f_te[no_rain_mask] = 0.0
+    
+    return f_te
 
 # ── station assignment ─────────────────────────────────────────────────
 
@@ -157,19 +150,23 @@ def assign_stations(targets, years_arr):
 
 def run_split(nn_model, P, T, Y, yrs, stns, tr_idx, vl_idx, te_idx, th, p90, p95, ustn, label):
     norm=Normaliser(); norm.fit(P[tr_idx],T[tr_idx])
-    ntr=nn_pred(nn_model,P[tr_idx],T[tr_idx],norm)
     # 85/15 from train for XGB
     np.random.seed(99); perm=np.random.permutation(len(tr_idx))
     nt=int(0.85*len(tr_idx))
     xtr,xvl=tr_idx[perm[:nt]],tr_idx[perm[nt:]]
-    nntr=nn_pred(nn_model,P[xtr],T[xtr],norm)
+
+    # Apply temporal noise augmentation to XGBoost training portion
+    xtr_P, xtr_T, xtr_Y, _ = temporal_augment(
+        P[xtr], T[xtr], Y[xtr], yrs[xtr])
+
+    nntr=nn_pred(nn_model,xtr_P,xtr_T,norm)
     nnvl=nn_pred(nn_model,P[xvl],T[xvl],norm)
     nnte=nn_pred(nn_model,P[te_idx],T[te_idx],norm)
-    Xtr=build_feat(P[xtr],T[xtr],norm,nntr)
+    Xtr=build_feat(xtr_P,xtr_T,norm,nntr)
     Xvl=build_feat(P[xvl],T[xvl],norm,nnvl)
     Xte=build_feat(P[te_idx],T[te_idx],norm,nnte)
-    print(f"  {label}: train={len(xtr)} val={len(xvl)} test={len(te_idx)}")
-    mpred=run_ensemble(Xtr,Y[xtr],Xvl,Y[xvl],Xte,nnvl,nnte,p90,p95,th)
+    print(f"  {label}: train={len(xtr_Y)} (aug) val={len(xvl)} test={len(te_idx)}")
+    mpred=run_ensemble(Xtr,xtr_Y,Xvl,Y[xvl],Xte,nnvl,nnte,p90,p95,th)
     ctr=P.shape[2]//2
     epred=P[te_idx,0,ctr,ctr].copy().clip(min=0)
     tgt=Y[te_idx]; tstn=stns[te_idx]
@@ -239,12 +236,12 @@ def main():
 
     ALL={}
 
-    # A) Temporal: Train 2015-2023, Test 2024
-    print("\n  === A) TEMPORAL: 2015-2023 -> 2024 ===")
-    tr=np.where(np.isin(yrs_arr,list(range(2015,2024))))[0]
-    te=np.where(yrs_arr==2024)[0]
+    # A) Temporal: Train 2015-2020, Test 2021-2024
+    print("\n  === A) TEMPORAL: 2015-2020 -> 2021-2024 ===")
+    tr=np.where(np.isin(yrs_arr,list(range(2015,2021))))[0]
+    te=np.where(np.isin(yrs_arr,list(range(2021,2025))))[0]
     r=run_split(nn,P,T,Y,yrs_arr,stns,tr,tr,te,th,p90,p95,ustn,"TEMPORAL")
-    print_table(r,ustn,"A) TEMPORAL: Train 2015-2023 -> Test 2024")
+    print_table(r,ustn,"A) TEMPORAL: Train 2015-2020 -> Test 2021-2024")
     ALL["temporal"]=r
 
     # B) Reverse: Train 2018-2024, Test 2015-2017
@@ -285,7 +282,7 @@ def main():
 
     # LOYO mean table
     print(f"\n{'='*140}")
-    print(f"  D-MEAN) LOYO MEAN (averaged across 10 years)")
+    print(f"  D-MEAN) LOYO MEAN (averaged across {len(all_yrs)} years)")
     print(f"{'='*140}")
     hdr=(f"  {'Station':>15s} | {'CSI_r':>6s} {'POD_r':>6s} {'FAR_r':>6s}"
          f" | {'CSI_90':>6s} {'POD_90':>6s} {'FAR_90':>6s} {'SEDI90':>7s}"

@@ -191,6 +191,154 @@ class DualPathNet(nn.Module):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# 4. AttentionNet — CNN + Channel Attention + Spatial Attention + Tabular MLP
+# ──────────────────────────────────────────────────────────────────────────────
+
+class ChannelAttention(nn.Module):
+    """
+    Squeeze-and-Excitation style channel attention.
+    Learns which atmospheric channels (CAPE, TCWV, W@850, etc.) matter most.
+    Uses both avg-pool and max-pool for richer statistics.
+    """
+    def __init__(self, channels, reduction=4):
+        super().__init__()
+        mid = max(channels // reduction, 8)
+        self.fc = nn.Sequential(
+            nn.Linear(channels, mid, bias=False),
+            nn.SiLU(inplace=True),
+            nn.Linear(mid, channels, bias=False),
+        )
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
+
+    def forward(self, x):
+        B, C, _, _ = x.shape
+        # Avg-pool path
+        avg_out = self.fc(self.avg_pool(x).view(B, C))
+        # Max-pool path
+        max_out = self.fc(self.max_pool(x).view(B, C))
+        # Combine and apply sigmoid gating
+        scale = torch.sigmoid(avg_out + max_out).view(B, C, 1, 1)
+        return x * scale
+
+
+class SpatialAttention(nn.Module):
+    """
+    CBAM-style spatial attention.
+    Learns that center pixels (station location) matter more than edges.
+    """
+    def __init__(self, kernel_size=5):
+        super().__init__()
+        pad = kernel_size // 2
+        self.conv = nn.Conv2d(2, 1, kernel_size=kernel_size, padding=pad, bias=False)
+
+    def forward(self, x):
+        # Channel-wise statistics across spatial dims
+        avg_out = x.mean(dim=1, keepdim=True)   # (B, 1, H, W)
+        max_out = x.max(dim=1, keepdim=True)[0]  # (B, 1, H, W)
+        combined = torch.cat([avg_out, max_out], dim=1)  # (B, 2, H, W)
+        attn = torch.sigmoid(self.conv(combined))  # (B, 1, H, W)
+        return x * attn
+
+
+class AttentionNet(nn.Module):
+    """
+    CNN with Channel + Spatial Attention for atmospheric patch data,
+    fused with a tabular MLP for derived physics features.
+
+    Architecture:
+      CNN Path: Conv(19→48) → BN → SiLU → Conv(48→96) → BN → SiLU
+                → ChannelAttention → SpatialAttention
+                → AdaptiveAvgPool → Flatten → (B, 96)
+      Tab Path: Linear(24→128) → BN → SiLU → Drop
+                → Linear(128→64) → BN → SiLU → Drop → (B, 64)
+      Fusion:   Concat(96+64=160) → Linear(160→64) → BN → SiLU → Drop
+                → Linear(64→1) → Softplus
+    """
+    def __init__(self, n_channels=19, n_tabular=24,
+                 base_ch=48, cnn_dropout=0.15,
+                 mlp_hidden=(128, 64), mlp_dropout=0.20,
+                 fusion_dim=64, fusion_dropout=0.15):
+        super().__init__()
+
+        # ── CNN backbone ──
+        self.cnn = nn.Sequential(
+            nn.Conv2d(n_channels, base_ch, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(base_ch),
+            nn.SiLU(inplace=True),
+            nn.Dropout2d(cnn_dropout),
+
+            nn.Conv2d(base_ch, base_ch * 2, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(base_ch * 2),
+            nn.SiLU(inplace=True),
+            nn.Dropout2d(cnn_dropout),
+        )
+        cnn_out_ch = base_ch * 2  # 96
+
+        # ── Attention modules ──
+        self.channel_attn = ChannelAttention(cnn_out_ch, reduction=4)
+        self.spatial_attn = SpatialAttention(kernel_size=5)
+
+        # ── Pooling ──
+        self.pool = nn.Sequential(
+            nn.AdaptiveAvgPool2d(1),
+            nn.Flatten(),
+        )
+
+        # ── Tabular MLP ──
+        self.tab_mlp = nn.Sequential(
+            nn.Linear(n_tabular, mlp_hidden[0]),
+            nn.BatchNorm1d(mlp_hidden[0]),
+            nn.SiLU(inplace=True),
+            nn.Dropout(mlp_dropout),
+
+            nn.Linear(mlp_hidden[0], mlp_hidden[1]),
+            nn.BatchNorm1d(mlp_hidden[1]),
+            nn.SiLU(inplace=True),
+            nn.Dropout(mlp_dropout * 0.75),
+        )
+
+        # ── Fusion head ──
+        fusion_in = cnn_out_ch + mlp_hidden[-1]  # 96 + 64 = 160
+        self.head = nn.Sequential(
+            nn.Linear(fusion_in, fusion_dim),
+            nn.BatchNorm1d(fusion_dim),
+            nn.SiLU(inplace=True),
+            nn.Dropout(fusion_dropout),
+
+            nn.Linear(fusion_dim, 1),
+            nn.Softplus(),
+        )
+
+    def forward(self, patch, tabular):
+        # CNN path with attention
+        cnn_feat = self.cnn(patch)                # (B, 96, 9, 9)
+        cnn_feat = self.channel_attn(cnn_feat)    # channel-reweighted
+        cnn_feat = self.spatial_attn(cnn_feat)    # spatial-reweighted
+        cnn_emb = self.pool(cnn_feat)             # (B, 96)
+
+        # Tabular path
+        tab_emb = self.tab_mlp(tabular)           # (B, 64)
+
+        # Fusion
+        fused = torch.cat([cnn_emb, tab_emb], dim=-1)  # (B, 160)
+        pred = self.head(fused).squeeze(-1)              # (B,)
+
+        # Occurrence logit for compatibility with CombinedLoss
+        occ_logit = (pred - 0.5) * 5.0
+        return occ_logit, pred, pred
+
+    def predict(self, patch, tabular):
+        _, _, pred = self.forward(patch, tabular)
+        return pred
+
+    def count_params(self):
+        total = sum(p.numel() for p in self.parameters() if p.requires_grad)
+        print(f"AttentionNet trainable parameters: {total:,}")
+        return total
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # FACTORY
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -215,6 +363,16 @@ def build_model(window_size=3, n_channels=19, n_tabular=24):
             mlp_dropout=config.MLP_DROPOUT,
             fusion_dim=config.FUSION_HIDDEN,
             fusion_dropout=config.FUSION_DROPOUT
+        )
+    elif model_type == "AttentionNet":
+        model = AttentionNet(
+            n_channels=n_channels, n_tabular=n_tabular,
+            base_ch=config.CNN_BASE_CHANNELS,
+            cnn_dropout=config.CNN_DROPOUT,
+            mlp_hidden=config.MLP_HIDDEN[:2],
+            mlp_dropout=config.MLP_DROPOUT,
+            fusion_dim=config.FUSION_HIDDEN,
+            fusion_dropout=config.FUSION_DROPOUT,
         )
     else:
         raise ValueError(f"Unknown MODEL_TYPE: {model_type}")

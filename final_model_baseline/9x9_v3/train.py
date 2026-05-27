@@ -255,11 +255,11 @@ def train(window_size: int, debug: bool = False) -> Dict:
         val_preds, val_targets = collect_predictions(model, val_loader, device)
         val_metrics = evaluate(val_preds, val_targets, thresholds, prefix="val")
 
-        # Primary score: mix of CSI_rain (smooth early) + P90 metrics
+        # Primary score: purely extreme-event focused
         csi_rain = val_metrics.get("val_CSI_rain", 0.0)
         csi_p90  = val_metrics.get("val_CSI_p90",  0.0)
         sedi_p90 = val_metrics.get("val_SEDI_p90", 0.0)
-        score    = 0.2 * csi_rain + 0.4 * csi_p90 + 0.4 * sedi_p90
+        score    = 0.1 * csi_rain + 0.45 * csi_p90 + 0.45 * sedi_p90
 
         # Log
         ep_time = time.time() - t_ep

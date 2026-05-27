@@ -520,14 +520,124 @@ def build_weighted_sampler(targets):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# TEMPORAL NOISE AUGMENTATION
+# ──────────────────────────────────────────────────────────────────────────────
+
+# Which years to augment and how many noisy copies per original sample
+AUGMENT_YEARS = [2018, 2019, 2020]
+AUGMENT_COPIES = 3           # number of noisy copies per sample
+PATCH_NOISE_SCALE = 0.03     # 3% of per-channel std
+TABULAR_NOISE_SCALE = 0.03   # 3% of per-feature std
+
+
+def temporal_augment(patches, tabular, targets, years_arr,
+                     augment_years=None, n_copies=None,
+                     patch_noise=None, tab_noise=None, seed=77):
+    """
+    Create noise-jittered copies of samples from specified years.
+
+    Args:
+        patches:  (N, C, H, W) float32
+        tabular:  (N, F) float32
+        targets:  (N,) float32
+        years_arr: (N,) int — year label for each sample
+        augment_years: list of years to augment (default: AUGMENT_YEARS)
+        n_copies: number of noisy copies per sample (default: AUGMENT_COPIES)
+        patch_noise: noise scale for patches (default: PATCH_NOISE_SCALE)
+        tab_noise: noise scale for tabular (default: TABULAR_NOISE_SCALE)
+        seed: random seed for reproducibility
+
+    Returns:
+        aug_patches, aug_tabular, aug_targets, aug_years — augmented arrays
+        (original data + synthetic copies concatenated)
+    """
+    if augment_years is None:
+        augment_years = AUGMENT_YEARS
+    if n_copies is None:
+        n_copies = AUGMENT_COPIES
+    if patch_noise is None:
+        patch_noise = PATCH_NOISE_SCALE
+    if tab_noise is None:
+        tab_noise = TABULAR_NOISE_SCALE
+
+    rng = np.random.RandomState(seed)
+
+    # Find indices of samples from target years
+    mask = np.isin(years_arr, augment_years)
+    src_idx = np.where(mask)[0]
+
+    if len(src_idx) == 0:
+        print(f"  [AUG] No samples found for years {augment_years}, skipping.")
+        return patches, tabular, targets, years_arr
+
+    # Compute per-channel std for patches and per-feature std for tabular
+    # using ONLY the source samples to keep noise proportional to their scale
+    p_std = patches[src_idx].std(axis=(0, 2, 3), keepdims=True)[:, :, np.newaxis, np.newaxis]
+    # Reshape to (1, C, 1, 1) for broadcasting
+    p_std = patches[src_idx].reshape(len(src_idx), patches.shape[1], -1).std(axis=(0, 2))
+    p_std = p_std[np.newaxis, :, np.newaxis, np.newaxis]  # (1, C, 1, 1)
+
+    t_std = tabular[src_idx].std(axis=0, keepdims=True)   # (1, F)
+
+    new_patches, new_tabular, new_targets, new_years = [], [], [], []
+
+    for _ in range(n_copies):
+        # Add small Gaussian noise scaled to feature variability
+        noisy_p = patches[src_idx] + rng.randn(*patches[src_idx].shape).astype(np.float32) * p_std * patch_noise
+        noisy_t = tabular[src_idx] + rng.randn(*tabular[src_idx].shape).astype(np.float32) * t_std * tab_noise
+
+        # Ensure tp (channel 0) stays non-negative
+        noisy_p[:, 0] = np.maximum(noisy_p[:, 0], 0.0)
+
+        new_patches.append(noisy_p)
+        new_tabular.append(noisy_t)
+        new_targets.append(targets[src_idx].copy())  # targets unchanged
+        new_years.append(years_arr[src_idx].copy())
+
+    # Concatenate original + augmented
+    aug_patches = np.concatenate([patches] + new_patches, axis=0)
+    aug_tabular = np.concatenate([tabular] + new_tabular, axis=0)
+    aug_targets = np.concatenate([targets] + new_targets, axis=0)
+    aug_years = np.concatenate([years_arr] + new_years, axis=0)
+
+    n_new = len(src_idx) * n_copies
+    print(f"\n  [AUG] Temporal noise augmentation:")
+    print(f"    Source years: {augment_years}")
+    print(f"    Source samples: {len(src_idx)}")
+    print(f"    Copies per sample: {n_copies} (noise: patch={patch_noise:.1%}, tab={tab_noise:.1%})")
+    print(f"    New synthetic samples: {n_new}")
+    print(f"    Total after augmentation: {len(aug_targets)} ({len(targets)} original + {n_new} synthetic)")
+
+    return aug_patches, aug_tabular, aug_targets, aug_years
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # CONVENIENCE LOADER
 # ──────────────────────────────────────────────────────────────────────────────
 
-def get_dataloaders(window_size: int = 3):
+def get_dataloaders(window_size: int = 3, use_augmentation: bool = True):
     builder = RainfallDataBuilder(window_size=window_size)
 
-    print("\n=== Building TRAIN data ===")
-    tr_patches, tr_tabular, tr_targets = builder.build(config.TRAIN_YEARS)
+    # Build per-year for training so we can track year labels
+    print("\n=== Building TRAIN data (per-year) ===")
+    tr_patches_list, tr_tabular_list, tr_targets_list, tr_years_list = [], [], [], []
+    for yr in config.TRAIN_YEARS:
+        p, t, y = builder.build([yr])
+        tr_patches_list.append(p)
+        tr_tabular_list.append(t)
+        tr_targets_list.append(y)
+        tr_years_list.append(np.full(len(y), yr, dtype=np.int32))
+
+    tr_patches = np.concatenate(tr_patches_list)
+    tr_tabular = np.concatenate(tr_tabular_list)
+    tr_targets = np.concatenate(tr_targets_list)
+    tr_years = np.concatenate(tr_years_list)
+    print(f"  Original train total: {len(tr_targets)} samples")
+
+    # Apply temporal noise augmentation on training data
+    if use_augmentation:
+        tr_patches, tr_tabular, tr_targets, tr_years = temporal_augment(
+            tr_patches, tr_tabular, tr_targets, tr_years)
 
     print("\n=== Building VAL data ===")
     vl_patches, vl_tabular, vl_targets = builder.build(config.VAL_YEARS)
@@ -535,7 +645,7 @@ def get_dataloaders(window_size: int = 3):
     print("\n=== Building TEST data ===")
     te_patches, te_tabular, te_targets = builder.build(config.TEST_YEARS)
 
-    # Fit normaliser on training data only
+    # Fit normaliser on training data only (including augmented)
     norm = Normaliser()
     norm.fit(tr_patches, tr_tabular)
 
@@ -570,7 +680,7 @@ def get_dataloaders(window_size: int = 3):
     thresholds = {"p90": p90, "p95": p95, "p99": p99}
 
     print(f"\nDataLoader sizes:")
-    print(f"  Train batches : {len(train_loader)}")
+    print(f"  Train batches : {len(train_loader)} ({'with' if use_augmentation else 'without'} augmentation)")
     print(f"  Val batches   : {len(val_loader)}")
     print(f"  Test batches  : {len(test_loader)}")
 

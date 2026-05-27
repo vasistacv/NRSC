@@ -34,9 +34,9 @@ DEFAULT_WINDOW = 9
 # ─────────────────────────────────────────────
 # DATA SPLIT
 # ─────────────────────────────────────────────
-TRAIN_YEARS = list(range(2015, 2023))  # 2015-2022 (8 years)
-VAL_YEARS   = [2023]
-TEST_YEARS  = [2024]
+TRAIN_YEARS = list(range(2015, 2020))  # 2015-2019 (5 years)
+VAL_YEARS   = [2020]
+TEST_YEARS  = [2021, 2022, 2023, 2024]
 
 # ─────────────────────────────────────────────
 # RAINFALL THRESHOLDS  (mm)
@@ -49,13 +49,13 @@ P99_APPROX     = 86.17
 # ─────────────────────────────────────────────
 # MODEL ARCHITECTURE
 # ─────────────────────────────────────────────
-MODEL_TYPE = "SmallNet"
+MODEL_TYPE = "AttentionNet"
 
-CNN_BASE_CHANNELS   = 32
+CNN_BASE_CHANNELS   = 48
 CNN_DEPTH           = 2
-CNN_DROPOUT         = 0.15
+CNN_DROPOUT         = 0.30
 MLP_HIDDEN          = [128, 64]
-MLP_DROPOUT         = 0.20
+MLP_DROPOUT         = 0.40
 FUSION_HIDDEN       = 64
 FUSION_DROPOUT      = 0.15
 
@@ -64,10 +64,10 @@ FUSION_DROPOUT      = 0.15
 # ─────────────────────────────────────────────
 TWEEDIE_P          = 1.5
 
-# v4-restored: gave best corr=0.51, SEDI_P95=0.79
-PENALTY_P90_UNDER  = 4.0
-PENALTY_P95_UNDER  = 8.0
-PENALTY_P99_UNDER  = 15.0
+# Aggressive penalties for underpredicting extreme events
+PENALTY_P90_UNDER  = 10.0
+PENALTY_P95_UNDER  = 20.0
+PENALTY_P99_UNDER  = 30.0
 PENALTY_FALSE_ALARM = 8.0
 
 QUANTILE_BLEND_WEIGHT = 0.20
@@ -75,21 +75,21 @@ QUANTILE_BLEND_WEIGHT = 0.20
 # ─────────────────────────────────────────────
 # TRAINING
 # ─────────────────────────────────────────────
-BATCH_SIZE         = 64
-NUM_EPOCHS         = 400       # more epochs for better convergence
-LR_INIT            = 5e-4
+BATCH_SIZE         = 48
+NUM_EPOCHS         = 300       # attention converges faster
+LR_INIT            = 3e-4
 LR_MIN             = 1e-6
-WEIGHT_DECAY       = 1e-3
+WEIGHT_DECAY       = 5e-3
 
-# Weighted sampler — v4 values
-OVERSAMPLE_P90     = 5.0
-OVERSAMPLE_P95     = 8.0
-OVERSAMPLE_P99     = 15.0
+# Weighted sampler — aggressive extreme oversampling
+OVERSAMPLE_P90     = 10.0
+OVERSAMPLE_P95     = 20.0
+OVERSAMPLE_P99     = 40.0
 OVERSAMPLE_RAIN    = 1.5
 # dry days = weight 1.0
 
 # Early stopping
-PATIENCE           = 80
+PATIENCE           = 60
 
 # Gradient clipping
 GRAD_CLIP          = 1.0
