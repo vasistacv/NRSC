@@ -1,5 +1,5 @@
 """
-Figure 4 – Radar/Spider Chart: Model vs ECMWF LOOCV 10-Year Average (All Stations)
+Figure 4 – Radar/Spider Chart: Model vs ECMWF vs GFS LOOCV 10-Year Average (All Stations)
 Nature-style publication figure.
 """
 
@@ -14,6 +14,7 @@ import matplotlib.ticker as ticker
 categories = ["CSI Rain", "POD Rain", "SEDI Rain", "CSI P90", "CSI P95", "Correlation"]
 model_vals  = [0.478, 0.773, 0.517, 0.217, 0.207, 0.449]
 ecmwf_vals  = [0.415, 0.972, 0.339, 0.082, 0.056, 0.245]
+gfs_vals    = [0.420, 0.955, 0.273, 0.083, 0.059, 0.203]
 
 N = len(categories)
 
@@ -23,12 +24,14 @@ angles += angles[:1]                       # close loop
 
 model_vals += model_vals[:1]
 ecmwf_vals += ecmwf_vals[:1]
+gfs_vals   += gfs_vals[:1]
 
 # ── Colours ─────────────────────────────────────────────────────────────
 CLR_MODEL = "#1565C0"
 CLR_ECMWF = "#E65100"
+CLR_GFS   = "#2E7D32"
 
-# ── Figure ──────────────────────────────────────────────────────────────
+# ── Figure ──────────────────────────────────────────────────────────────────
 fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
 fig.patch.set_facecolor("white")
 
@@ -90,6 +93,18 @@ ax.scatter(
     s=38, color=CLR_ECMWF, edgecolors="white", linewidths=0.8, zorder=5,
 )
 
+# ── Plot GFS ───────────────────────────────────────────────────────────
+ax.plot(
+    angles, gfs_vals,
+    color=CLR_GFS, linewidth=2.4, linestyle="-.",
+    label="GFS (25 km)", zorder=3,
+)
+ax.fill(angles, gfs_vals, color=CLR_GFS, alpha=0.10, zorder=1)
+ax.scatter(
+    angles[:-1], gfs_vals[:-1],
+    s=38, color=CLR_GFS, edgecolors="white", linewidths=0.8, zorder=5,
+)
+
 # ── Value annotations (Per-axis manual offsets to prevent overlap) ──────
 # Format: (model_radial_offset, ecmwf_radial_offset)
 # Positive = outward, negative = inward
@@ -129,6 +144,21 @@ for i in range(N):
         color=CLR_ECMWF,
         bbox=dict(boxstyle="round,pad=0.12", facecolor="white",
                   edgecolor=CLR_ECMWF, alpha=0.92, linewidth=0.6),
+        zorder=7,
+    )
+
+    # GFS label
+    g_val = gfs_vals[i]
+    # Place GFS label further out if close to ECMWF
+    g_off = e_off - 0.16 if abs(g_val - e_val) < 0.05 else e_off + 0.16
+    ax.text(
+        angle, g_val + g_off,
+        f"{g_val:.2f}",
+        ha="center", va="center",
+        fontsize=8, fontweight="bold", fontfamily="serif",
+        color=CLR_GFS,
+        bbox=dict(boxstyle="round,pad=0.12", facecolor="white",
+                  edgecolor=CLR_GFS, alpha=0.92, linewidth=0.6),
         zorder=7,
     )
 

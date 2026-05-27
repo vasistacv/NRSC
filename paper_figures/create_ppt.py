@@ -113,6 +113,8 @@ add_line(s1, Inches(0), Inches(7.46), Inches(13.333), color=ACCENT, thickness=Pt
 # ═════════════════════════════════════════════════════════════════════════
 figure_files = [
     r"D:\NEW_NRSC\paper_figures\Fig1_Study_Area_Map.png",
+    r"D:\NEW_NRSC\paper_figures\Fig_Architecture.png",
+    r"D:\NEW_NRSC\paper_figures\Fig_Correlation_Heatmap.png",
     r"D:\NEW_NRSC\paper_figures\Fig3_Station_Heatmap.png",
     r"D:\NEW_NRSC\paper_figures\Fig4_Radar_Comparison.png",
     r"D:\NEW_NRSC\paper_figures\Fig5_Split_Comparison.png",
@@ -180,7 +182,7 @@ add_text(s_end, Inches(2.0), Inches(2.8), Inches(9.3), Inches(1.0),
 add_line(s_end, Inches(5.5), Inches(4.2), Inches(2.3), color=ACCENT, thickness=Pt(2))
 
 add_text(s_end, Inches(2.0), Inches(4.5), Inches(9.3), Inches(0.6),
-         "Questions & Discussion",
+         "Because of your guidance, I learned a lot of things. Thank you, Sir.",
          size=18, color=MID_GRAY, bold=False, align=PP_ALIGN.CENTER, font="Georgia")
 
 add_line(s_end, Inches(0), Inches(7.46), Inches(13.333), color=ACCENT, thickness=Pt(4))

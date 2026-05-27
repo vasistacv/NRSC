@@ -1,5 +1,5 @@
 """
-Figure 9: Comprehensive Comparison Table — Model vs ECMWF
+Figure 9: Comprehensive Comparison Table — Model vs ECMWF vs GFS
 Nature-style table with professional formatting and clear color coding.
 """
 
@@ -35,6 +35,13 @@ ecmwf = {
     "LOOCV":    [0.415, 0.339, 0.082, 0.056, 12.9, 0.245],
 }
 
+gfs = {
+    "Temporal": [0.419, 0.273, 0.085, 0.054, 15.0, 0.203],
+    "Reverse":  [0.419, 0.273, 0.085, 0.054, 15.0, 0.203],
+    "Random":   [0.419, 0.273, 0.085, 0.054, 15.0, 0.203],
+    "LOOCV":    [0.419, 0.273, 0.085, 0.054, 15.0, 0.203],
+}
+
 higher_better = [True, True, True, True, False, True]
 
 # ── Colors ──
@@ -45,6 +52,7 @@ HEADER_BG  = "#1A237E"   # deep indigo
 HEADER_FG  = "#FFFFFF"
 MODEL_ROW  = "#E3F2FD"   # light blue for model row label
 ECMWF_ROW  = "#FFF3E0"   # light amber for ecmwf row label
+GFS_ROW    = "#E8F5E9"   # light green for gfs row label
 
 # ── Build table data ──
 row_labels = []
@@ -54,18 +62,22 @@ cell_colors = []
 for strat in strategies:
     m_vals = model[strat]
     e_vals = ecmwf[strat]
+    g_vals = gfs[strat]
+
+    # Find best value for each metric among 3 sources
+    all_sources = [m_vals, e_vals, g_vals]
 
     # Model row
     row_labels.append(f"{strat}\nModel")
     m_row_text = []
     m_row_colors = []
-    for j, (mv, ev, hb) in enumerate(zip(m_vals, e_vals, higher_better)):
+    for j, (mv, ev, gv, hb) in enumerate(zip(m_vals, e_vals, g_vals, higher_better)):
         m_row_text.append(f"{mv:.3f}" if mv < 1 else f"{mv:.1f}")
         if hb:
-            winner = "model" if mv > ev else ("ecmwf" if ev > mv else "tie")
+            is_best = mv >= ev and mv >= gv
         else:
-            winner = "model" if mv < ev else ("ecmwf" if ev < mv else "tie")
-        m_row_colors.append(MODEL_WIN if winner == "model" else (ECMWF_WIN if winner == "ecmwf" else TIE_BG))
+            is_best = mv <= ev and mv <= gv
+        m_row_colors.append(MODEL_WIN if is_best else TIE_BG)
     cell_text.append(m_row_text)
     cell_colors.append(m_row_colors)
 
@@ -73,15 +85,29 @@ for strat in strategies:
     row_labels.append(f"{strat}\nECMWF")
     e_row_text = []
     e_row_colors = []
-    for j, (mv, ev, hb) in enumerate(zip(m_vals, e_vals, higher_better)):
+    for j, (mv, ev, gv, hb) in enumerate(zip(m_vals, e_vals, g_vals, higher_better)):
         e_row_text.append(f"{ev:.3f}" if ev < 1 else f"{ev:.1f}")
         if hb:
-            winner = "ecmwf" if ev > mv else ("model" if mv > ev else "tie")
+            is_best = ev >= mv and ev >= gv
         else:
-            winner = "ecmwf" if ev < mv else ("model" if mv < ev else "tie")
-        e_row_colors.append(MODEL_WIN if winner == "ecmwf" else (ECMWF_WIN if winner == "model" else TIE_BG))
+            is_best = ev <= mv and ev <= gv
+        e_row_colors.append(MODEL_WIN if is_best else TIE_BG)
     cell_text.append(e_row_text)
     cell_colors.append(e_row_colors)
+
+    # GFS row
+    row_labels.append(f"{strat}\nGFS")
+    g_row_text = []
+    g_row_colors = []
+    for j, (mv, ev, gv, hb) in enumerate(zip(m_vals, e_vals, g_vals, higher_better)):
+        g_row_text.append(f"{gv:.3f}" if gv < 1 else f"{gv:.1f}")
+        if hb:
+            is_best = gv >= mv and gv >= ev
+        else:
+            is_best = gv <= mv and gv <= ev
+        g_row_colors.append(MODEL_WIN if is_best else TIE_BG)
+    cell_text.append(g_row_text)
+    cell_colors.append(g_row_colors)
 
 n_rows = len(cell_text)
 n_cols = len(metric_labels)
@@ -92,7 +118,7 @@ ax.axis("off")
 
 # Title
 fig.suptitle(
-    "Comprehensive Performance: Model vs ECMWF\nAcross All Validation Strategies",
+    "Comprehensive Performance: Model vs ECMWF vs GFS\nAcross All Validation Strategies",
     fontsize=16, fontweight="bold", fontfamily="serif", y=0.95,
 )
 
@@ -102,7 +128,7 @@ table = ax.table(
     rowLabels=row_labels,
     colLabels=metric_labels,
     cellColours=cell_colors,
-    rowColours=[MODEL_ROW if i % 2 == 0 else ECMWF_ROW for i in range(n_rows)],
+    rowColours=[MODEL_ROW if i % 3 == 0 else (ECMWF_ROW if i % 3 == 1 else GFS_ROW) for i in range(n_rows)],
     colColours=[HEADER_BG] * n_cols,
     cellLoc="center",
     rowLoc="center",
@@ -126,30 +152,23 @@ for (row, col), cell in table.get_celld().items():
         cell.set_height(0.10)
     elif col == -1:
         # Row labels
-        strat_idx = (row - 1) // 2
-        is_model = (row - 1) % 2 == 0
-        if is_model:
+        mod_idx = (row - 1) % 3  # 0=Model, 1=ECMWF, 2=GFS
+        if mod_idx == 0:
             cell.set_facecolor(MODEL_ROW)
             cell.set_text_props(color="#0D47A1", fontsize=10, fontweight="bold")
-        else:
+        elif mod_idx == 1:
             cell.set_facecolor(ECMWF_ROW)
             cell.set_text_props(color="#E65100", fontsize=10, fontweight="bold")
+        else:
+            cell.set_facecolor(GFS_ROW)
+            cell.set_text_props(color="#2E7D32", fontsize=10, fontweight="bold")
     else:
         # Data cells
         cell.set_text_props(fontsize=11, fontweight="bold")
-        # Bold winner values
-        r_idx = row - 1
-        m_val = model[strategies[r_idx // 2]][col]
-        e_val = ecmwf[strategies[r_idx // 2]][col]
-        hb = higher_better[col]
-        if hb:
-            is_winner = (r_idx % 2 == 0 and m_val > e_val) or (r_idx % 2 == 1 and e_val > m_val)
-        else:
-            is_winner = (r_idx % 2 == 0 and m_val < e_val) or (r_idx % 2 == 1 and e_val < m_val)
 
 # Strategy separator lines
 for (row, col), cell in table.get_celld().items():
-    if row >= 1 and (row - 1) % 2 == 0 and row > 1:
+    if row >= 1 and (row - 1) % 3 == 0 and row > 1:
         cell.set_edgecolor("#546E7A")
         cell.set_linewidth(2.0)
 

@@ -1,6 +1,6 @@
 """
 Figure 3: Station-wise LOOCV CSI Heatmap
-Two panels: (a) Raw Model CSI values, (b) % Improvement over ECMWF
+Three panels: (a) Raw Model CSI values, (b) % Improvement over ECMWF, (c) % Improvement over GFS
 Nature-quality formatting with serif fonts, 300 DPI output.
 """
 
@@ -40,13 +40,31 @@ ecmwf = np.array([
     [0.380, 0.091, 0.050],
 ])
 
-# % Improvement  (handle division by zero: if ECMWF==0, use absolute diff * 100
-# to avoid inf; mark as large improvement)
+# GFS CSI values (25 km)
+gfs = np.array([
+    [0.430, 0.015, 0.000],
+    [0.404, 0.071, 0.083],
+    [0.398, 0.101, 0.051],
+    [0.425, 0.113, 0.094],
+    [0.463, 0.131, 0.088],
+    [0.430, 0.100, 0.043],
+    [0.390, 0.056, 0.038],
+])
+
+# % Improvement over ECMWF
 with np.errstate(divide="ignore", invalid="ignore"):
-    pct_improve = np.where(
+    pct_improve_ecmwf = np.where(
         ecmwf == 0,
-        np.where(model == 0, 0.0, 100.0),          # 0→X  ⇒ cap at 100 %
+        np.where(model == 0, 0.0, 100.0),
         ((model - ecmwf) / ecmwf) * 100.0,
+    )
+
+# % Improvement over GFS
+with np.errstate(divide="ignore", invalid="ignore"):
+    pct_improve_gfs = np.where(
+        gfs == 0,
+        np.where(model == 0, 0.0, 100.0),
+        ((model - gfs) / gfs) * 100.0,
     )
 
 # ── Global style ─────────────────────────────────────────────────────────────
@@ -65,10 +83,10 @@ plt.rcParams.update({
 })
 
 # ── Figure ───────────────────────────────────────────────────────────────────
-fig, (ax_a, ax_b) = plt.subplots(
-    1, 2,
-    figsize=(14, 6),
-    gridspec_kw={"wspace": 0.35},
+fig, (ax_a, ax_b, ax_c) = plt.subplots(
+    1, 3,
+    figsize=(21, 6),
+    gridspec_kw={"wspace": 0.40},
 )
 
 # ── Helper: draw one heatmap ─────────────────────────────────────────────────
@@ -144,16 +162,30 @@ draw_heatmap(
 )
 
 # ── Panel (b): % Improvement over ECMWF ─────────────────────────────────────
-abs_max = np.max(np.abs(pct_improve))
-sym_lim = min(abs_max * 1.15, 1200)  # symmetric limits, cap large values
+abs_max_e = np.max(np.abs(pct_improve_ecmwf))
+sym_lim_e = min(abs_max_e * 1.15, 1200)
 
 draw_heatmap(
-    ax_b, pct_improve,
+    ax_b, pct_improve_ecmwf,
     cmap="RdYlGn",
-    vmin=-sym_lim * 0.15, vmax=sym_lim,
+    vmin=-sym_lim_e * 0.15, vmax=sym_lim_e,
     fmt="{:.0f}%",
     label="Improvement over ECMWF (%)",
     title="(b) % Improvement over ECMWF",
+    cbar_fmt="%g%%",
+)
+
+# ── Panel (c): % Improvement over GFS ────────────────────────────────────────
+abs_max_g = np.max(np.abs(pct_improve_gfs))
+sym_lim_g = min(abs_max_g * 1.15, 1200)
+
+draw_heatmap(
+    ax_c, pct_improve_gfs,
+    cmap="RdYlGn",
+    vmin=-sym_lim_g * 0.15, vmax=sym_lim_g,
+    fmt="{:.0f}%",
+    label="Improvement over GFS (%)",
+    title="(c) % Improvement over GFS",
     cbar_fmt="%g%%",
 )
 

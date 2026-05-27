@@ -13,14 +13,16 @@ import numpy as np
 # ── Data ─────────────────────────────────────────────────────────────────────
 splits = ["Temporal", "Reverse\nTemporal", "Random", "LOOCV"]
 
-# (Model, ECMWF) per split
+# (Model, ECMWF, GFS) per split
 csi_p90 = {
     "Model":  [0.128, 0.267, 0.260, 0.217],
     "ECMWF":  [0.131, 0.057, 0.145, 0.082],
+    "GFS":    [0.083, 0.083, 0.083, 0.083],
 }
 csi_p95 = {
     "Model":  [0.101, 0.279, 0.250, 0.207],
     "ECMWF":  [0.087, 0.015, 0.037, 0.056],
+    "GFS":    [0.059, 0.059, 0.059, 0.059],
 }
 
 panels = [
@@ -51,7 +53,8 @@ plt.rcParams.update({
 
 COLOR_MODEL = "#3575B2"   # steel blue
 COLOR_ECMWF = "#E8873D"   # warm orange
-BAR_WIDTH    = 0.32
+COLOR_GFS   = "#2E7D32"   # forest green
+BAR_WIDTH    = 0.25
 EDGE_LW      = 0.7
 
 # ── Figure ───────────────────────────────────────────────────────────────────
@@ -62,16 +65,22 @@ x = np.arange(len(splits))
 for ax, (title, data) in zip(axes, panels):
     model_vals = data["Model"]
     ecmwf_vals = data["ECMWF"]
+    gfs_vals   = data["GFS"]
 
     bars_m = ax.bar(
-        x - BAR_WIDTH / 2, model_vals, BAR_WIDTH,
+        x - BAR_WIDTH, model_vals, BAR_WIDTH,
         color=COLOR_MODEL, edgecolor="black", linewidth=EDGE_LW,
         label="Model", zorder=3,
     )
     bars_e = ax.bar(
-        x + BAR_WIDTH / 2, ecmwf_vals, BAR_WIDTH,
+        x, ecmwf_vals, BAR_WIDTH,
         color=COLOR_ECMWF, edgecolor="black", linewidth=EDGE_LW,
-        label="ECMWF", hatch="///", zorder=3,
+        label="ECMWF (9 km)", hatch="///", zorder=3,
+    )
+    bars_g = ax.bar(
+        x + BAR_WIDTH, gfs_vals, BAR_WIDTH,
+        color=COLOR_GFS, edgecolor="black", linewidth=EDGE_LW,
+        label="GFS (25 km)", hatch="\\\\\\", zorder=3,
     )
 
     # Value labels
@@ -80,14 +89,21 @@ for ax, (title, data) in zip(axes, panels):
         ax.text(
             bar.get_x() + bar.get_width() / 2, h + 0.006,
             f"{h:.3f}", ha="center", va="bottom",
-            fontsize=10, color="#222222",
+            fontsize=9, color="#222222",
         )
     for bar in bars_e:
         h = bar.get_height()
         ax.text(
             bar.get_x() + bar.get_width() / 2, h + 0.006,
             f"{h:.3f}", ha="center", va="bottom",
-            fontsize=10, color="#222222",
+            fontsize=9, color="#222222",
+        )
+    for bar in bars_g:
+        h = bar.get_height()
+        ax.text(
+            bar.get_x() + bar.get_width() / 2, h + 0.006,
+            f"{h:.3f}", ha="center", va="bottom",
+            fontsize=9, color="#222222",
         )
 
     # Axes formatting
@@ -95,7 +111,7 @@ for ax, (title, data) in zip(axes, panels):
     ax.set_xticklabels(splits)
     ax.set_ylabel("CSI")
     ax.set_title(title, pad=10)
-    ax.set_ylim(0, max(max(model_vals), max(ecmwf_vals)) * 1.25)
+    ax.set_ylim(0, max(max(model_vals), max(ecmwf_vals), max(gfs_vals)) * 1.25)
     ax.yaxis.set_major_locator(ticker.MultipleLocator(0.05))
     ax.yaxis.set_minor_locator(ticker.MultipleLocator(0.025))
 
