@@ -228,7 +228,9 @@ def main():
     for s in ustn: print(f"    {s:20s}: {(stns==s).sum()}")
 
     print("\n[3/3] SmallNet...")
-    nn=build_model(window_size=config.DEFAULT_WINDOW,n_channels=19,n_tabular=24)
+    nn=build_model(window_size=config.DEFAULT_WINDOW,
+                   n_channels=config.N_CNN_CHANNELS,
+                   n_tabular=config.N_TABULAR)
     pts=sorted((config.OUTPUT_DIR/f"window_{config.DEFAULT_WINDOW}").glob("*.pt"))
     ck=torch.load(str(pts[-1]),map_location="cpu")
     nn.load_state_dict(ck["model"]); nn.eval()

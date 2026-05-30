@@ -20,8 +20,22 @@ OUTPUT_DIR      = ROOT_DIR / "final_model_baseline" / "9x9_v3"
 # ECMWF GRIB SETTINGS
 # ─────────────────────────────────────────────
 SFC_VARS = ["tp", "tcwv", "cape", "d2m"]
-PL_VARS  = ["r", "w", "vo", "u", "v"]
-PRESSURE_LEVELS = [850, 500, 200]
+
+# Variable reduction based on correlation + physics analysis:
+#   Removed: vo (corr +0.04), u (corr +0.03), v (corr -0.11)
+#   Selective levels: r@850,500 (drop 200), w@500 only (W850=0.00)
+PL_VAR_LEVELS = {
+    "r": [850, 500],   # RH 500 (~0.42), RH 850 (+0.16). Drop RH 200 (+0.09)
+    "w": [500],         # W 500 (~0.48 HIGHEST). Drop W 850 (0.00 ZERO)
+}
+# For backward compatibility
+PL_VARS = list(PL_VAR_LEVELS.keys())
+PRESSURE_LEVELS = [850, 500, 200]  # master list (filtered per var)
+
+# Total CNN channels: 4 surface + 2 (r) + 1 (w) = 7
+N_CNN_CHANNELS = 7
+# Tabular features: 13 (reduced from 24)
+N_TABULAR = 13
 GRID_RES = 0.1
 MONSOON_MONTHS = [6, 7, 8, 9]
 

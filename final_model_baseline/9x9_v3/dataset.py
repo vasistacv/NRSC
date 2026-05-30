@@ -12,16 +12,21 @@ CRITICAL TEMPORAL ALIGNMENT:
   This means the GRIB field from init 2015-06-02 12UTC is the forecast
   that covers the period including GT date 2015-06-03.
 
-Channel layout (19 channels):
-  [0]  tp        SFC  total precipitation
-  [1]  tcwv      SFC  total column water vapour
-  [2]  cape      SFC  convective available potential energy
-  [3]  d2m       SFC  2m dewpoint temperature
-  [4-6]   r   @ 850/500/200 hPa  relative humidity
-  [7-9]   w   @ 850/500/200 hPa  vertical velocity
-  [10-12]  vo @ 850/500/200 hPa  vorticity
-  [13-15]  u  @ 850/500/200 hPa  U-wind
-  [16-18]  v  @ 850/500/200 hPa  V-wind
+Channel layout (7 channels) — reduced from 19 via correlation+physics:
+  [0]  tp        SFC  total precipitation  (corr +0.37)
+  [1]  tcwv      SFC  total column water vapour  (corr +0.24)
+  [2]  cape      SFC  convective available potential energy  (corr +0.05)
+  [3]  d2m       SFC  2m dewpoint temperature  (corr +0.18)
+  [4]  r   @ 850 hPa  relative humidity  (corr +0.16)
+  [5]  r   @ 500 hPa  relative humidity  (corr ~0.42)
+  [6]  w   @ 500 hPa  vertical velocity  (corr ~0.48, HIGHEST)
+
+  Removed (low/negative correlation):
+    vo @ 850/500/200 hPa  vorticity   (corr +0.04)
+    u  @ 850/500/200 hPa  U-wind      (corr +0.03)
+    v  @ 850/500/200 hPa  V-wind      (corr -0.11)
+    r  @ 200 hPa          RH upper    (corr +0.09, marginal)
+    w  @ 850 hPa          W low-level (corr 0.00, ZERO)
 """
 
 import warnings
@@ -138,7 +143,10 @@ def _extract_patch(field, lat_idx, lon_idx, half):
 # ──────────────────────────────────────────────────────────────────────────────
 
 def derive_tabular_features(sfc_patch, pl_data):
-    """Compute physics-informed scalar indices from patch-centre values."""
+    """
+    Compute physics-informed scalar indices from patch-centre values.
+    Reduced from 24 to 13 features after removing u/v/vo dependencies.
+    """
     mid = sfc_patch.shape[-1] // 2
 
     tp   = float(sfc_patch[0, mid, mid])
@@ -150,37 +158,24 @@ def derive_tabular_features(sfc_patch, pl_data):
 
     r850  = pl_data.get("r_850",  50.0)
     r500  = pl_data.get("r_500",  50.0)
-    r200  = pl_data.get("r_200",  20.0)
-    w850  = pl_data.get("w_850",   0.0)
     w500  = pl_data.get("w_500",   0.0)
-    u850  = pl_data.get("u_850",   0.0)
-    u200  = pl_data.get("u_200",   0.0)
-    v850  = pl_data.get("v_850",   0.0)
-    v200  = pl_data.get("v_200",   0.0)
-    vo850 = pl_data.get("vo_850",  0.0)
 
-    ws850      = np.sqrt(u850**2 + v850**2)
-    ws200      = np.sqrt(u200**2 + v200**2)
-    shear_mag  = np.sqrt((u200-u850)**2 + (v200-v850)**2)
-    tp_log     = np.log1p(max(tp_mm, 0.0))
-    cape_uplift = cape * max(-w850, 0.0) / 1000.0
-    d2m_dev    = d2m - 295.0
-    vort_rh    = vo850 * r850 * 1e4
-    rh_diff    = r850 - r500
-    cape_tcwv  = cape * tcwv / 1e5
-    tp_cape    = tp_mm * cape / 1e3
+    # Derived features (only from kept variables)
+    tp_log      = np.log1p(max(tp_mm, 0.0))
+    cape_uplift = cape * max(-w500, 0.0) / 1000.0  # using w500 instead of w850
+    d2m_dev     = d2m - 295.0
+    rh_diff     = r850 - r500
+    cape_tcwv   = cape * tcwv / 1e5
+    tp_cape     = tp_mm * cape / 1e3
 
     feats = np.array([
-        tp_mm, tcwv, cape, d2m,
-        r850, r500, r200,
-        w850, w500,
-        u850, u200, v850, v200,
-        vo850,
-        ws850, ws200, shear_mag,
-        tp_log, cape_uplift, d2m_dev,
-        vort_rh, rh_diff,
-        cape_tcwv, tp_cape,
-    ], dtype=np.float32)
+        tp_mm, tcwv, cape, d2m,       # 4 raw surface
+        r850, r500,                    # 2 humidity
+        w500,                          # 1 uplift
+        tp_log, cape_uplift, d2m_dev,  # 3 derived
+        rh_diff,                       # 1 derived
+        cape_tcwv, tp_cape,            # 2 interaction
+    ], dtype=np.float32)               # Total: 13 features
 
     return feats
 
@@ -368,10 +363,10 @@ class RainfallDataBuilder:
         return patches_y, tabular_y, targets_y
 
     def _build_patch(self, sfc_ds, pl_ds, lat_idx, lon_idx):
-        """Build (19, W, W) patch from a single-timestep GRIB slice."""
+        """Build (7, W, W) patch from a single-timestep GRIB slice."""
         channels = []
 
-        # Surface channels (4)
+        # Surface channels (4): tp, tcwv, cape, d2m
         for var in config.SFC_VARS:
             if var not in sfc_ds:
                 channels.append(np.zeros((self.window, self.window), dtype=np.float32))
@@ -389,13 +384,14 @@ class RainfallDataBuilder:
                 return None
             channels.append(patch)
 
-        # Pressure-level channels (5 vars x 3 levels = 15)
-        for var in config.PL_VARS:
+        # Pressure-level channels — per-variable selective levels
+        # r@850,500 (2 ch) + w@500 (1 ch) = 3 channels
+        for var, levels in config.PL_VAR_LEVELS.items():
             if var not in pl_ds:
-                for _ in config.PRESSURE_LEVELS:
+                for _ in levels:
                     channels.append(np.zeros((self.window, self.window), dtype=np.float32))
                 continue
-            for level in config.PRESSURE_LEVELS:
+            for level in levels:
                 try:
                     field = pl_ds[var].sel(isobaricInhPa=level).values.astype(np.float32)
                     if field.ndim > 2:
@@ -418,10 +414,10 @@ class RainfallDataBuilder:
     def _pl_scalars(self, pl_ds, lat_idx, lon_idx):
         """Extract scalar values at station grid cell for tabular features."""
         scalars = {}
-        for var in config.PL_VARS:
+        for var, levels in config.PL_VAR_LEVELS.items():
             if var not in pl_ds:
                 continue
-            for level in config.PRESSURE_LEVELS:
+            for level in levels:
                 try:
                     field = pl_ds[var].sel(isobaricInhPa=level).values
                     if field.ndim > 2:

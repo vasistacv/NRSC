@@ -322,7 +322,7 @@ def main():
 
     # ── Load SmallNet ────────────────────────────────────────────────────
     print(f"\n[2/4] Loading SmallNet...")
-    nn_model = build_model(window_size=config.DEFAULT_WINDOW, n_channels=19, n_tabular=24)
+    nn_model = build_model(window_size=config.DEFAULT_WINDOW, n_channels=config.N_CNN_CHANNELS, n_tabular=config.N_TABULAR)
 
     ckpt_dir = config.OUTPUT_DIR / f"window_{config.DEFAULT_WINDOW}"
     pts = sorted(ckpt_dir.glob("*.pt"))
