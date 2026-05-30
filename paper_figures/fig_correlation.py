@@ -2,7 +2,7 @@
 fig_correlation_heatmap.py
 ===========================
 Publication-quality Feature Correlation Heatmap.
-Shows correlation between all 24 tabular input features and observed rainfall.
+Shows correlation between all 24 features (derived from 9 atmospheric variables) and observed rainfall.
 """
 import warnings
 warnings.filterwarnings("ignore")
@@ -80,7 +80,7 @@ sns.heatmap(corr, mask=mask, cmap='RdBu_r', center=0,
             linewidths=0.5, linecolor='white',
             cbar_kws={'shrink': 0.8, 'label': 'Pearson Correlation'},
             annot=False, ax=ax1)
-ax1.set_title('(a) Feature Correlation Matrix', fontsize=16, fontweight='bold', pad=12)
+ax1.set_title('(a) Feature Correlation Matrix (9 Variables → 24 Features)', fontsize=16, fontweight='bold', pad=12)
 ax1.tick_params(axis='both', labelsize=9)
 plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45, ha='right')
 plt.setp(ax1.yaxis.get_majorticklabels(), rotation=0)

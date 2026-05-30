@@ -85,8 +85,8 @@ plt.rcParams.update({
 # ── Figure ───────────────────────────────────────────────────────────────────
 fig, (ax_a, ax_b, ax_c) = plt.subplots(
     1, 3,
-    figsize=(21, 6),
-    gridspec_kw={"wspace": 0.40},
+    figsize=(24, 6),
+    gridspec_kw={"wspace": 0.55},
 )
 
 # ── Helper: draw one heatmap ─────────────────────────────────────────────────
