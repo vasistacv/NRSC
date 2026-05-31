@@ -22,7 +22,7 @@ metric_labels = ["CSI\n(Rainy)", "SEDI\n(Rainy)", "CSI\n(\u2265P90)", "CSI\n(\u2
 strategies = ["Temporal", "Reverse", "Random", "LOOCV"]
 
 model = {
-    "Temporal": [0.496, 0.530, 0.119, 0.102, 16.0, 0.255],
+    "Temporal": [0.496, 0.508, 0.119, 0.102, 16.0, 0.255],
     "Reverse":  [0.467, 0.556, 0.497, 0.384, 13.8, 0.785],
     "Random":   [0.505, 0.596, 0.417, 0.319, 12.1, 0.733],
     "LOOCV":    [0.488, 0.545, 0.330, 0.221, 14.1, 0.543],
