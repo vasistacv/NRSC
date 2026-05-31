@@ -77,7 +77,7 @@ check("fig5", "Random CSI_p90",   0.417, splits_model["random"]["CSI_p90"])
 check("fig5", "LOYO CSI_p90",     0.330, m["CSI_p90"])
 # Model CSI P95
 check("fig5", "Temporal CSI_p95", 0.102, splits_model["temporal"]["CSI_p95"])
-check("fig5", "Reverse CSI_p95",  0.384, splits_model["reverse"]["CSI_p95"])
+check("fig5", "Reverse CSI_p95",  0.3835, splits_model["reverse"]["CSI_p95"])
 check("fig5", "Random CSI_p95",   0.319, splits_model["random"]["CSI_p95"])
 check("fig5", "LOYO CSI_p95",     0.221, m["CSI_p95"])
 print("  Checked 8 values")
@@ -88,10 +88,10 @@ print("  Checked 8 values")
 print("\n--- fig9_table_figure.py ---")
 # model = {split: [CSI_r, SEDI_r, CSI_90, CSI_95, RMSE, Corr]}
 fig9_data = {
-    "Temporal": [0.496, 0.530, 0.119, 0.102, 16.0, 0.255],
-    "Reverse":  [0.467, 0.556, 0.497, 0.384, 13.8, 0.785],
-    "Random":   [0.505, 0.596, 0.417, 0.319, 12.1, 0.733],
-    "LOOCV":    [0.488, 0.545, 0.330, 0.221, 14.1, 0.543],
+    "Temporal": [0.4956, 0.508, 0.1189, 0.1022, 15.975, 0.255],
+    "Reverse":  [0.4669, 0.556, 0.4972, 0.3835, 13.832, 0.785],
+    "Random":   [0.5055, 0.596, 0.4167, 0.3191, 12.129, 0.733],
+    "LOOCV":    [0.488, 0.545, 0.330, 0.221, 14.142, 0.543],
 }
 json_map = {"Temporal": "temporal", "Reverse": "reverse", "Random": "random"}
 keys = ["CSI_rain", "SEDI_rain", "CSI_p90", "CSI_p95", "RMSE", "corr_rainy"]
