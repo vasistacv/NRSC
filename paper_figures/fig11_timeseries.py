@@ -52,7 +52,7 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 import gc
 
-sys.path.insert(0, str(Path(__file__).parent.parent / "extracted_files"))
+sys.path.insert(0, str(Path(__file__).parent.parent / "final_model_baseline" / "9x9_v3"))
 import config
 from dataset import RainfallDataBuilder, Normaliser
 from model import build_model
@@ -274,7 +274,7 @@ def get_model_predictions_temporal(df, stations):
     norm.fit(all_patches[tr_mask], all_tabular[tr_mask])
 
     # Load SmallNet
-    nn_model = build_model(window_size=WINDOW, n_channels=19, n_tabular=24)
+    nn_model = build_model(window_size=WINDOW, n_channels=7, n_tabular=13)
     ckpt_dir = config.OUTPUT_DIR / f"window_{WINDOW}"
     pts = list(ckpt_dir.glob("*.pt"))
     if not pts:

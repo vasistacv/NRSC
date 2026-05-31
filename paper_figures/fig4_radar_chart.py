@@ -12,7 +12,7 @@ import matplotlib.ticker as ticker
 
 # ── Data ────────────────────────────────────────────────────────────────
 categories = ["CSI Rain", "POD Rain", "SEDI Rain", "CSI P90", "CSI P95", "Correlation"]
-model_vals  = [0.478, 0.773, 0.517, 0.217, 0.207, 0.449]
+model_vals  = [0.488, 0.790, 0.545, 0.330, 0.221, 0.543]
 ecmwf_vals  = [0.415, 0.972, 0.339, 0.082, 0.056, 0.245]
 gfs_vals    = [0.420, 0.955, 0.273, 0.083, 0.059, 0.203]
 

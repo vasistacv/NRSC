@@ -20,13 +20,13 @@ threshold_labels = ["CSI (Rain/No-Rain)", "CSI (≥P90)", "CSI (≥P95)"]
 
 # Model CSI values
 model = np.array([
-    [0.487, 0.173, 0.092],   # Chevella
-    [0.456, 0.237, 0.166],   # Hayathnagar
-    [0.461, 0.286, 0.293],   # Ibrahimpatnam
-    [0.490, 0.145, 0.061],   # Kondurg
-    [0.527, 0.257, 0.273],   # Maheshwaram
-    [0.484, 0.182, 0.150],   # Saroornagar
-    [0.432, 0.192, 0.140],   # Yacharam
+    [0.505, 0.336, 0.140],   # Chevella
+    [0.467, 0.373, 0.282],   # Hayathnagar
+    [0.469, 0.391, 0.179],   # Ibrahimpatnam
+    [0.513, 0.263, 0.108],   # Kondurg
+    [0.528, 0.317, 0.237],   # Maheshwaram
+    [0.492, 0.296, 0.269],   # Saroornagar
+    [0.436, 0.253, 0.182],   # Yacharam
 ])
 
 # ECMWF CSI values

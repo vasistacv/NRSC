@@ -112,16 +112,16 @@ ax.text(16, 15.05,
         zorder=11)
 
 # ═══════════════════════════════════════════════════════════════════════════
-# PANEL A: 19 Atmospheric Channels  (y: 8.0 → 14.3)
+# PANEL A: 7 Atmospheric Channels  (y: 8.0 → 14.3)
 # height = 6.3, enough for all items
 # ═══════════════════════════════════════════════════════════════════════════
 panel_a = FancyBboxPatch((0.7, 8.0), 8.0, 6.3, boxstyle="round,pad=0.15",
                           fc='#F5F8FF', ec='#1565C0', lw=2.5, zorder=2)
 ax.add_patch(panel_a)
 
-ax.text(4.7, 13.85, '9 Atmospheric Variables', ha='center', fontsize=23,
+ax.text(4.7, 13.85, '7 Atmospheric Channels', ha='center', fontsize=23,
         fontweight='bold', color='#0D47A1')
-ax.text(4.7, 13.35, '(4 Sfc + 5 PL × 3 Heights = 19 Channels, 9×9 Grid)', ha='center',
+ax.text(4.7, 13.35, '(4 Sfc + 2 RH + 1 W = 7 Channels, 9×9 Grid)', ha='center',
         fontsize=14, color='#546E7A', fontstyle='italic')
 
 ax.text(1.1, 12.75, 'Surface Variables (4)', fontsize=20, fontweight='bold',
@@ -134,42 +134,39 @@ for i, (c, d) in enumerate(sfc):
             fontfamily='monospace')
     ax.text(3.2, yy, d, fontsize=17, color='#37474F')
 
-ax.text(1.1, 10.3, 'Pressure-Level (15)', fontsize=20, fontweight='bold',
+ax.text(1.1, 10.3, 'Pressure-Level (3)', fontsize=20, fontweight='bold',
         color='#5C6BC0')
-ax.text(1.1, 9.85, '@ 850/500/200 hPa (×3 each)', fontsize=15,
+ax.text(1.1, 9.85, '@ 850 & 500 hPa', fontsize=15,
         color='#78909C', fontstyle='italic')
-pl = [('r', 'Rel. Humidity'), ('w', 'Vert. Velocity'),
-      ('vo', 'Vorticity'), ('u', 'U-wind'), ('v', 'V-wind')]
+pl = [('r_850', 'Rel. Humidity 850 hPa'), ('r_500', 'Rel. Humidity 500 hPa'),
+      ('w_500', 'Vert. Velocity 500 hPa')]
 for i, (c, d) in enumerate(pl):
-    yy = 9.45 - i * 0.35
+    yy = 9.45 - i * 0.45
     ax.text(1.3, yy, c, fontsize=18, fontweight='bold', color='#5C6BC0',
             fontfamily='monospace')
-    ax.text(3.2, yy, f'{d} (×3)', fontsize=17, color='#37474F')
-# Last item "v" at 9.45 - 4*0.35 = 8.05 → above panel bottom 8.0 ✓
+    ax.text(3.8, yy, d, fontsize=17, color='#37474F')
 
 # ═══════════════════════════════════════════════════════════════════════════
-# PANEL B: 24 Physics Features  (y: 0.7 → 7.5)
+# PANEL B: 13 Physics Features  (y: 0.7 → 7.5)
 # gap = 8.0 - 7.5 = 0.5
 # ═══════════════════════════════════════════════════════════════════════════
 panel_b = FancyBboxPatch((0.7, 0.7), 8.0, 6.8, boxstyle="round,pad=0.15",
                           fc='#F5FFF5', ec='#2E7D32', lw=2.5, zorder=2)
 ax.add_patch(panel_b)
 
-ax.text(4.7, 7.1, '24 Physics-Derived Scalar Features', ha='center',
+ax.text(4.7, 7.1, '13 Physics-Derived Scalar Features', ha='center',
         fontsize=23, fontweight='bold', color='#1B5E20')
 
-col1 = ['tp (mm)', 'tcwv', 'cape', 'd2m', 'r_850', 'r_500', 'r_200',
-        'w_850', 'w_500', 'u_850', 'u_200', 'v_850']
+col1 = ['tp (mm)', 'tcwv', 'cape', 'd2m', 'r_850', 'r_500',
+        'w_500']
 for i, v in enumerate(col1):
-    ax.text(1.0, 6.55 - i * 0.47, f'{i + 1:2d}. {v}', fontsize=17,
+    ax.text(1.0, 6.55 - i * 0.55, f'{i + 1:2d}. {v}', fontsize=17,
             color='#37474F', fontfamily='monospace')
-# Last: 6.55 - 11*0.47 = 1.38 → above 0.7 ✓
 
-col2 = ['v_200', 'vo_850', 'ws_850', 'ws_200', 'shear_mag', 'tp_log',
-        'cape_uplift', 'd2m_dev', 'vort_rh', 'rh_diff', 'cape_tcwv',
-        'tp_cape']
+col2 = ['tp_log', 'cape_uplift', 'd2m_dev',
+        'rh_diff', 'cape_tcwv', 'tp_cape']
 for i, v in enumerate(col2):
-    ax.text(5.0, 6.55 - i * 0.47, f'{i + 13:2d}. {v}', fontsize=17,
+    ax.text(5.0, 6.55 - i * 0.55, f'{i + 8:2d}. {v}', fontsize=17,
             color='#37474F', fontfamily='monospace')
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -178,10 +175,10 @@ for i, v in enumerate(col2):
 
 # ── Input boxes ──────────────────────────────────────────────────────────
 pbox(9.5, 9.2, 2.4, 2.6, '#00897B',
-     'ECMWF\nGrid Patch\n9×9×19', fs=17)
+     'ECMWF\nGrid Patch\n9×9×7', fs=17)
 
 pbox(9.5, 4.2, 2.4, 2.4, '#2E7D32',
-     '24 Physics\nFeatures', fs=17)
+     '13 Physics\nFeatures', fs=17)
 
 # Arrows from panels
 parr(8.7, 10.5, 9.5, 10.5, c='#00897B')
@@ -195,7 +192,7 @@ ax.text(15.5, 14.2, 'CNN Backbone', fontsize=26, fontweight='bold',
 
 parr(11.9, 10.5, 12.7, 10.5, c='#00897B', lw=3)
 
-block3d(12.8, 8.5, 1.0, 3.8, C_CNN1, 'Conv\n19→48', fs=15)
+block3d(12.8, 8.5, 1.0, 3.8, C_CNN1, 'Conv\n7→48', fs=15)
 block3d(14.1, 8.5, 1.0, 3.8, C_CNN2, 'Conv\n48→96', fs=15)
 block3d(15.4, 8.5, 1.0, 3.8, C_ATTN1, 'Channel\nAttn', fs=14)
 block3d(16.7, 8.5, 1.0, 3.8, C_ATTN2, 'Spatial\nAttn', fs=14)

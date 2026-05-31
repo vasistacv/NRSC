@@ -15,58 +15,30 @@ import numpy as np
 from collections import defaultdict
 
 # ── Load data ────────────────────────────────────────────────────────────────
-with open(r"D:\NEW_NRSC\experiment_outputs\final_ensemble\loyo_results.json") as f:
-    loyo = json.load(f)
-
-with open(r"D:\NEW_NRSC\ecmwf_baseline_results.json") as f:
-    ecmwf_raw = json.load(f)
-
-with open(r"D:\NEW_NRSC\gfs_baseline_results.json") as f:
-    gfs_raw = json.load(f)
+with open(r"D:\NEW_NRSC\final_model_baseline\9x9_v3\final_ensemble\station_final_results.json") as f:
+    results = json.load(f)
 
 years = list(range(2015, 2025))
 
-# ── Model per-year CSI ───────────────────────────────────────────────────────
+# ── Model & ECMWF per-year CSI from loyo_per_year ───────────────────────────
 model_csi_rain = []
 model_csi_p90 = []
+ecmwf_csi_rain = []
+ecmwf_csi_p90 = []
+
 for y in years:
-    yd = loyo["per_year"].get(str(y), {})
-    model_csi_rain.append(yd.get("CSI_rain", 0.0))
-    model_csi_p90.append(yd.get("CSI_p90", 0.0))
-
-# ── ECMWF per-year CSI (aggregate from station data) ─────────────────────────
-ecmwf_yearly_rain = defaultdict(lambda: {"H": 0, "M": 0, "FA": 0})
-ecmwf_yearly_p90  = defaultdict(lambda: {"H": 0, "M": 0, "FA": 0})
-
-for key, data in ecmwf_raw.items():
-    parts = key.rsplit("_", 1)
-    if len(parts) != 2:
-        continue
-    try:
-        year = int(parts[1])
-    except ValueError:
-        continue
-    if year not in years:
-        continue
-
-    ecmwf_yearly_rain[year]["H"]  += data.get("H_rain", 0)
-    ecmwf_yearly_rain[year]["M"]  += data.get("M_rain", 0)
-    ecmwf_yearly_rain[year]["FA"] += data.get("FA_rain", 0)
-
-    ecmwf_yearly_p90[year]["H"]  += data.get("H_p90", 0)
-    ecmwf_yearly_p90[year]["M"]  += data.get("M_p90", 0)
-    ecmwf_yearly_p90[year]["FA"] += data.get("FA_p90", 0)
-
-
-def compute_csi(h, m, fa):
-    denom = h + m + fa
-    return h / denom if denom > 0 else 0.0
-
-
-ecmwf_csi_rain = [compute_csi(ecmwf_yearly_rain[y]["H"], ecmwf_yearly_rain[y]["M"], ecmwf_yearly_rain[y]["FA"]) for y in years]
-ecmwf_csi_p90  = [compute_csi(ecmwf_yearly_p90[y]["H"], ecmwf_yearly_p90[y]["M"], ecmwf_yearly_p90[y]["FA"]) for y in years]
+    yd = results["loyo_per_year"].get(str(y), {})
+    m = yd.get("ALL", {}).get("model", {})
+    e = yd.get("ALL", {}).get("ecmwf", {})
+    model_csi_rain.append(m.get("CSI_rain", 0.0))
+    model_csi_p90.append(m.get("CSI_p90", 0.0))
+    ecmwf_csi_rain.append(e.get("CSI_rain", 0.0))
+    ecmwf_csi_p90.append(e.get("CSI_p90", 0.0))
 
 # ── GFS per-year CSI ─────────────────────────────────────────────────────────
+with open(r"D:\NEW_NRSC\gfs_baseline_results.json") as f:
+    gfs_raw = json.load(f)
+
 gfs_yearly_rain = defaultdict(lambda: {"H": 0, "M": 0, "FA": 0})
 gfs_yearly_p90  = defaultdict(lambda: {"H": 0, "M": 0, "FA": 0})
 
@@ -89,11 +61,15 @@ for key, data in gfs_raw.items():
     gfs_yearly_p90[year]["M"]  += data.get("M_p90", 0)
     gfs_yearly_p90[year]["FA"] += data.get("FA_p90", 0)
 
+def compute_csi(h, m, fa):
+    denom = h + m + fa
+    return h / denom if denom > 0 else 0.0
+
 gfs_csi_rain = [compute_csi(gfs_yearly_rain[y]["H"], gfs_yearly_rain[y]["M"], gfs_yearly_rain[y]["FA"]) for y in years]
 gfs_csi_p90  = [compute_csi(gfs_yearly_p90[y]["H"], gfs_yearly_p90[y]["M"], gfs_yearly_p90[y]["FA"]) for y in years]
 
-model_overall_rain = loyo["aggregate_metrics"]["CSI_rain"]
-model_overall_p90  = loyo["aggregate_metrics"]["CSI_p90"]
+model_overall_rain = results["loyo_model_mean"]["ALL"]["CSI_rain"]
+model_overall_p90  = results["loyo_model_mean"]["ALL"]["CSI_p90"]
 
 print("Model CSI_rain per year:", [f"{v:.3f}" for v in model_csi_rain])
 print("ECMWF CSI_rain per year:", [f"{v:.3f}" for v in ecmwf_csi_rain])

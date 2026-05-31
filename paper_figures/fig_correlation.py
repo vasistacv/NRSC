@@ -2,7 +2,7 @@
 fig_correlation_heatmap.py
 ===========================
 Publication-quality Feature Correlation Heatmap.
-Shows correlation between all 24 features (derived from 9 atmospheric variables) and observed rainfall.
+Shows correlation between all 13 features (derived from 7 atmospheric channels) and observed rainfall.
 """
 import warnings
 warnings.filterwarnings("ignore")
@@ -37,13 +37,10 @@ from dataset import RainfallDataBuilder
 # ── Feature names ──
 FEATURE_NAMES = [
     'ECMWF TP (mm)', 'TCWV', 'CAPE', 'D2M',
-    'RH 850', 'RH 500', 'RH 200',
-    'W 850', 'W 500',
-    'U 850', 'U 200', 'V 850', 'V 200',
-    'Vorticity 850',
-    'WS 850', 'WS 200', 'Wind Shear',
+    'RH 850', 'RH 500',
+    'W 500',
     'TP (log)', 'CAPE×Uplift', 'D2M Dev',
-    'Vort×RH', 'RH Diff',
+    'RH Diff',
     'CAPE×TCWV', 'TP×CAPE',
 ]
 
@@ -80,7 +77,7 @@ sns.heatmap(corr, mask=mask, cmap='RdBu_r', center=0,
             linewidths=0.5, linecolor='white',
             cbar_kws={'shrink': 0.8, 'label': 'Pearson Correlation'},
             annot=False, ax=ax1)
-ax1.set_title('(a) Feature Correlation Matrix (9 Variables → 24 Features)', fontsize=16, fontweight='bold', pad=12)
+ax1.set_title('(a) Feature Correlation Matrix (7 Channels → 13 Features)', fontsize=16, fontweight='bold', pad=12)
 ax1.tick_params(axis='both', labelsize=9)
 plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45, ha='right')
 plt.setp(ax1.yaxis.get_majorticklabels(), rotation=0)

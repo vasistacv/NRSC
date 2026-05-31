@@ -46,13 +46,13 @@ plt.rcParams.update({
 # 2.  Station data
 # ──────────────────────────────────────────────────────────
 stations = {
-    "Chevella":       {"lat": 17.3067, "lon": 78.1353, "model": 0.092, "ecmwf": 0.000, "imp": 100},
-    "Hayathnagar":    {"lat": 17.3230, "lon": 78.5540, "model": 0.166, "ecmwf": 0.103, "imp": 61},
-    "Ibrahimpatnam":  {"lat": 17.1017, "lon": 78.6294, "model": 0.293, "ecmwf": 0.100, "imp": 193},
-    "Kondurg":        {"lat": 17.0992, "lon": 78.0369, "model": 0.061, "ecmwf": 0.033, "imp": 85},
-    "Maheshwaram":    {"lat": 17.1342, "lon": 78.4334, "model": 0.273, "ecmwf": 0.108, "imp": 153},
-    "Saroornagar":    {"lat": 17.3394, "lon": 78.5556, "model": 0.150, "ecmwf": 0.033, "imp": 355},
-    "Yacharam":       {"lat": 17.0449, "lon": 78.6643, "model": 0.140, "ecmwf": 0.050, "imp": 180},
+    "Chevella":       {"lat": 17.3067, "lon": 78.1353, "model": 0.140, "ecmwf": 0.000, "imp": 100},
+    "Hayathnagar":    {"lat": 17.3230, "lon": 78.5540, "model": 0.282, "ecmwf": 0.103, "imp": 174},
+    "Ibrahimpatnam":  {"lat": 17.1017, "lon": 78.6294, "model": 0.179, "ecmwf": 0.100, "imp": 79},
+    "Kondurg":        {"lat": 17.0992, "lon": 78.0369, "model": 0.108, "ecmwf": 0.033, "imp": 227},
+    "Maheshwaram":    {"lat": 17.1342, "lon": 78.4334, "model": 0.237, "ecmwf": 0.108, "imp": 119},
+    "Saroornagar":    {"lat": 17.3394, "lon": 78.5556, "model": 0.269, "ecmwf": 0.033, "imp": 715},
+    "Yacharam":       {"lat": 17.0449, "lon": 78.6643, "model": 0.182, "ecmwf": 0.050, "imp": 264},
 }
 
 names = list(stations.keys())
@@ -87,9 +87,14 @@ sizes = size_min + model_norm * (size_max - size_min)
 fig, ax = plt.subplots(figsize=(10, 10))
 
 # --- Telangana district boundaries -----------------------
-ts.boundary.plot(ax=ax, linewidth=0.6, color="#666666")
-ts.plot(ax=ax, facecolor="#f5f5f0", edgecolor="#999999",
-        linewidth=0.45, alpha=0.55)
+try:
+    ts_valid = ts[~ts.geometry.is_empty & ts.geometry.notnull()]
+    ts_valid.plot(ax=ax, facecolor="#f5f5f0", edgecolor="#999999",
+            linewidth=0.6, alpha=0.55)
+except Exception as e:
+    print(f"  Warning: shapefile plot failed ({e}), drawing without boundaries")
+    ax.set_xlim(77.4, 79.2)
+    ax.set_ylim(16.8, 17.8)
 
 # --- Station scatter -------------------------------------
 sc = ax.scatter(
@@ -139,7 +144,7 @@ cbar.outline.set_linewidth(0.6)
 # ──────────────────────────────────────────────────────────
 # 7.  Size legend (Model CSI_p95)
 # ──────────────────────────────────────────────────────────
-legend_vals = [0.06, 0.15, 0.29]
+legend_vals = [0.12, 0.20, 0.28]
 legend_sizes = [
     size_min + ((v - model.min()) / (model.max() - model.min() + 1e-9))
     * (size_max - size_min) for v in legend_vals
