@@ -62,23 +62,37 @@ if len(names) < n_feats:
 df = pd.DataFrame(tabular, columns=names)
 df['Observed\nRainfall (mm)'] = targets
 
+# Drop any zero-variance columns (they produce NaN correlations)
+std = df.std()
+zero_var = std[std == 0].index.tolist()
+if zero_var:
+    print(f"  Dropping zero-variance features: {zero_var}")
+    df = df.drop(columns=zero_var)
+
 # ── Compute correlation matrix ──
 corr = df.corr()
+# Fill any remaining NaN with 0 (e.g., from perfectly constant columns)
+corr = corr.fillna(0)
+
+print(f"  Correlation matrix shape: {corr.shape}")
+print(f"  NaN count: {corr.isna().sum().sum()}")
 
 # ── Plot ──
 fig, axes = plt.subplots(1, 2, figsize=(22, 10),
                           gridspec_kw={'width_ratios': [3, 1]})
 
-# Panel (a): Full correlation matrix
+# Panel (a): Full correlation matrix (lower triangle)
 ax1 = axes[0]
 mask = np.triu(np.ones_like(corr, dtype=bool), k=1)
 sns.heatmap(corr, mask=mask, cmap='RdBu_r', center=0,
             vmin=-1, vmax=1, square=True,
-            linewidths=0.5, linecolor='white',
+            linewidths=0.8, linecolor='white',
             cbar_kws={'shrink': 0.8, 'label': 'Pearson Correlation'},
-            annot=False, ax=ax1)
-ax1.set_title('(a) Feature Correlation Matrix (7 Channels → 13 Features)', fontsize=16, fontweight='bold', pad=12)
-ax1.tick_params(axis='both', labelsize=9)
+            annot=True, fmt='.2f', annot_kws={'size': 8},
+            ax=ax1)
+ax1.set_title('(a) Feature Correlation Matrix (7 Channels \u2192 13 Features)',
+              fontsize=16, fontweight='bold', pad=12)
+ax1.tick_params(axis='both', labelsize=10)
 plt.setp(ax1.xaxis.get_majorticklabels(), rotation=45, ha='right')
 plt.setp(ax1.yaxis.get_majorticklabels(), rotation=0)
 
@@ -91,9 +105,9 @@ bars = ax2.barh(range(len(rainfall_corr)), rainfall_corr.values, color=colors,
                 edgecolor='white', linewidth=0.5, height=0.7)
 
 ax2.set_yticks(range(len(rainfall_corr)))
-ax2.set_yticklabels(rainfall_corr.index, fontsize=9)
+ax2.set_yticklabels(rainfall_corr.index, fontsize=10)
 ax2.set_xlabel('Correlation with Rainfall', fontsize=13, fontweight='bold')
-ax2.set_title('(b) Feature–Rainfall\nCorrelation', fontsize=16, fontweight='bold', pad=12)
+ax2.set_title('(b) Feature\u2013Rainfall\nCorrelation', fontsize=16, fontweight='bold', pad=12)
 ax2.axvline(x=0, color='#333', linewidth=1, linestyle='-')
 ax2.set_xlim(-0.5, 0.8)
 ax2.grid(axis='x', alpha=0.3, linestyle='--')
@@ -103,7 +117,7 @@ for i, (v, name) in enumerate(zip(rainfall_corr.values, rainfall_corr.index)):
     ax2.text(v + 0.02 if v >= 0 else v - 0.02,
              i, f'{v:.2f}', va='center',
              ha='left' if v >= 0 else 'right',
-             fontsize=8, fontweight='bold',
+             fontsize=9, fontweight='bold',
              color='#1565C0' if v >= 0 else '#C62828')
 
 for sp in ax2.spines.values():
@@ -115,3 +129,4 @@ out = r"D:\NEW_NRSC\paper_figures\Fig_Correlation_Heatmap.png"
 fig.savefig(out, dpi=300, bbox_inches='tight', facecolor='white', edgecolor='none')
 plt.close(fig)
 print(f"\n[OK] Saved -> {out}")
+

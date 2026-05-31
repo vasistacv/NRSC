@@ -125,13 +125,13 @@ figure_files = [
     r"D:\NEW_NRSC\paper_figures\Fig8_LOYO_Yearly.png",
     r"D:\NEW_NRSC\paper_figures\Fig9_Comprehensive_Table.png",
     r"D:\NEW_NRSC\paper_figures\Fig10_Improvement_Summary.png",
-    r"D:\NEW_NRSC\paper_figures\Fig11_Timeseries_2021_Chevella.png",
-    r"D:\NEW_NRSC\paper_figures\Fig11_Timeseries_2021_Hayathnagar.png",
-    r"D:\NEW_NRSC\paper_figures\Fig11_Timeseries_2021_Ibrahimpatnam.png",
-    r"D:\NEW_NRSC\paper_figures\Fig11_Timeseries_2021_Kondurg.png",
-    r"D:\NEW_NRSC\paper_figures\Fig11_Timeseries_2021_Maheshwaram.png",
-    r"D:\NEW_NRSC\paper_figures\Fig11_Timeseries_2021_Saroornagar.png",
-    r"D:\NEW_NRSC\paper_figures\Fig11_Timeseries_2021_Yacharam.png",
+    r"D:\NEW_NRSC\paper_figures\Fig11_Timeseries_2019_Chevella.png",
+    r"D:\NEW_NRSC\paper_figures\Fig11_Timeseries_2019_Hayathnagar.png",
+    r"D:\NEW_NRSC\paper_figures\Fig11_Timeseries_2019_Ibrahimpatnam.png",
+    r"D:\NEW_NRSC\paper_figures\Fig11_Timeseries_2019_Kondurg.png",
+    r"D:\NEW_NRSC\paper_figures\Fig11_Timeseries_2019_Maheshwaram.png",
+    r"D:\NEW_NRSC\paper_figures\Fig11_Timeseries_2019_Saroornagar.png",
+    r"D:\NEW_NRSC\paper_figures\Fig11_Timeseries_2019_Yacharam.png",
 ]
 
 for img_path in figure_files:

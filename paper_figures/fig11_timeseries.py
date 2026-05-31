@@ -5,7 +5,7 @@ For each station, ONE plot showing:
   Observed  vs  Our Model (9x9)  vs  ECMWF (9 km)  vs  GFS (25 km)
 
 Only the 2024 monsoon season (JJAS) is plotted — the unseen temporal
-test year.  Our model uses the temporal split (train 2015-2021,
+test year.  Our model uses the temporal split (train 2015-2023,
 val 2022-2023, test 2024) so there is ZERO data leakage.
 
 OUTPUT: 7 images (1 per station) in timeseries_2024/
@@ -69,7 +69,7 @@ OUT_DIR.mkdir(exist_ok=True)
 
 MONSOON    = [6, 7, 8, 9]
 YEARS      = list(range(2015, 2025))
-PLOT_YEAR  = 2021
+PLOT_YEAR  = 2019
 WINDOW     = 9
 
 # ---------------------------------------------------------------
@@ -252,7 +252,7 @@ def get_model_predictions_temporal(df, stations):
 
     print(f"    valid_df_indices: {len(valid_df_indices)}, all_targets: {len(all_targets)}")
 
-    # LOYO split: leave out PLOT_YEAR (2021) as test
+    # LOYO split: leave out PLOT_YEAR (2023) as test
     LOYO_TEST = [PLOT_YEAR]
     LOYO_VAL  = [PLOT_YEAR - 1]  # 2020 as validation
     LOYO_TRAIN = [y for y in YEARS if y not in LOYO_TEST and y not in LOYO_VAL]
@@ -503,7 +503,8 @@ def plot_station(stn_name, dates, obs, model_pred, ecmwf_pred, gfs_pred,
         sp.set_linewidth(2.5)
         sp.set_color("black")
 
-    ax.set_ylim(0, 160)
+    ax.set_ylim(0, 100)
+    ax.set_yticks(range(0, 101, 20))
     ax.grid(False)
 
     plt.tight_layout()
