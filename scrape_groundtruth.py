@@ -25,8 +25,20 @@ CSV_PATH = SCRIPT_DIR / "groundtruth_june2026.csv"
 
 def scrape():
     """Scrape Rangareddy mandal page and return (date, {station: rainfall_mm})."""
-    r = requests.get(URL, verify=False, timeout=30)
-    r.raise_for_status()
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36'
+    }
+    # Retry up to 3 times
+    for attempt in range(3):
+        try:
+            r = requests.get(URL, verify=False, timeout=30, headers=headers)
+            r.raise_for_status()
+            break
+        except Exception as e:
+            print(f"  Attempt {attempt+1}/3 failed: {e}")
+            if attempt == 2:
+                raise
+            import time; time.sleep(5)
     soup = BeautifulSoup(r.text, 'html.parser')
 
     # Extract date from page
@@ -129,8 +141,8 @@ def main():
         else:
             print(f"\n→ {data_date} was already in CSV")
     else:
-        print("\n✗ No data found — website may be down or format changed")
-        exit(1)
+        print("\n✗ No data found -- website may be down or format changed")
+        print("Will retry on next scheduled run.")
 
 
 if __name__ == "__main__":
